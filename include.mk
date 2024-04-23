@@ -1,0 +1,2 @@
+QEMU := qemu-system-mipsel
+

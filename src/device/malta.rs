@@ -1,0 +1,6 @@
+pub const MALTA_PCIIO_BASE: usize = 0x18000000;
+
+pub const MALTA_SERIAL_BASE: usize = MALTA_PCIIO_BASE + 0x3f8;
+pub const MALTA_SERIAL_DATA: usize = MALTA_SERIAL_BASE + 0x0;
+pub const MALTA_SERIAL_LSR: usize = MALTA_SERIAL_BASE + 0x5;
+pub const MALTA_SERIAL_THR_EMPTY: u8 = 0x20;
