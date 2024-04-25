@@ -8,9 +8,6 @@ lazy_static = {"version" = "1.4.0", "features" = ["spin_no_std"]}
 spin = {"version" = "0.9.8"}
 buddy_system_allocator = "0.9.1"
 
-[lib]
-name = "mos_lib"
-
 [profile.dev]
 panic = "abort"
 

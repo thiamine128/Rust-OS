@@ -1,12 +1,10 @@
-use core::{ops::Add, ptr::{null, null_mut}};
+use crate::memory::page_table::page_strong_check;
 
-use crate::{kern::print, memory::{mmu::{kva2pa, ppn, pte_addr, pte_flags, va2pa, PAGE_SIZE, PDMAP, PGSHIFT, PTE_C_CACHEABLE, PTE_V}, pmap::{Pde, Pte, PMAP}}, println};
 
 pub fn lab2_2() {
-    page_check();
     page_strong_check();
 }
-
+/*
 pub fn page_strong_check() {
     unsafe {
 	let mut pmap = PMAP.lock();
@@ -224,3 +222,4 @@ pub fn page_check() {
     println!("page_check() succeeded!");
     }
 }
+*/

@@ -33,3 +33,6 @@ gdb:
 	gdb-multiarch \
 	-q target/mipsel-unknown-none/debug/mos_rust \
     -ex 'target remote localhost:1234'
+
+doc:
+	cargo doc --bin mos_rust

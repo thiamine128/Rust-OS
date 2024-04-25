@@ -1,19 +1,23 @@
 use buddy_system_allocator::LockedHeap;
 
+
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap<32> = LockedHeap::<32>::empty();
 
-static mut HEAP_SPACE: [u8; super::KERNEL_HEAP_SIZE] = [0; super::KERNEL_HEAP_SIZE];
+const KERNEL_HEAP_SIZE: usize = 0x80000;
+static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
+/// initialize kernel heap.
 pub fn init_heap() {
     unsafe {
         HEAP_ALLOCATOR
             .lock()
-            .init(HEAP_SPACE.as_ptr() as usize, super::KERNEL_HEAP_SIZE);
+            .init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
     }
 }
 
+/// handle heap allocation error/
 #[alloc_error_handler]
-pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
+pub fn handle_heap_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout={:?}", layout);
 }
