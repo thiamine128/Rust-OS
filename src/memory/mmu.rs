@@ -1,6 +1,6 @@
 use core::{fmt, iter::Step, ops::{Add, AddAssign}};
 
-use super::page_table::{PageTable, Pte};
+use super::page_table::Pte;
 
 /// the number of ASIDs
 pub const NASID: usize = 256;

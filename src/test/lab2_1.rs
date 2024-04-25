@@ -1,4 +1,4 @@
-use crate::memory::frame::{frame_alloc, physical_memory_manage_strong_check};
+use crate::memory::frame::physical_memory_manage_strong_check;
 
 pub fn lab2_1() {
 	//physical_memory_manage_check();

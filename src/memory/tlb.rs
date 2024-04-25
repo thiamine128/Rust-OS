@@ -1,8 +1,8 @@
 use core::ptr::addr_of_mut;
 
-use crate::{bitops::genmask, println};
+use crate::bitops::genmask;
 
-use super::{frame::{frame_alloc, frame_incref}, mmu::{VirtAddr, NASID, PAGE_SIZE, PGSHIFT, PTE_D, UENVS, ULIM, UPAGES, USTACKTOP, UTEMP, UVPT}, page_table::{cur_pgdir, PageTable, Pte}};
+use super::{frame::{frame_alloc, frame_incref}, mmu::{VirtAddr, NASID, PAGE_SIZE, PGSHIFT, PTE_D, UENVS, ULIM, UPAGES, USTACKTOP, UTEMP, UVPT}, page_table::{cur_pgdir, PageTable}};
 
 extern "C" {
     fn tlb_out(entry: usize);
@@ -50,8 +50,8 @@ fn passive_alloc(va: VirtAddr, pgdir: &mut PageTable, asid: usize) {
 pub extern "C" fn _do_tlb_refill(pentrylo: &mut [usize; 2], va: VirtAddr, asid: usize) {
 	tlb_invalidate(asid, va);
 
-	let mut pte = loop {
-        if let Ok((ppn, pte)) = cur_pgdir().unwrap().lookup(va) {
+	let pte = loop {
+        if let Ok((_, pte)) = cur_pgdir().unwrap().lookup(va) {
             break pte;
         }
 		passive_alloc(va, cur_pgdir().unwrap(), asid);

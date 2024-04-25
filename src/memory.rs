@@ -1,8 +1,6 @@
 use core::mem::size_of;
 use crate::memory::frame::init_frame_allocator;
-use crate::println;
-
-use crate::memory::{frame::{FrameAllocator, PhysFrame}, mmu::VirtAddr};
+use crate::memory::{frame::PhysFrame, mmu::VirtAddr};
 
 use self::mmu::PAGE_SIZE;
 
@@ -19,8 +17,8 @@ pub mod tlb;
 
 #[derive(Debug)]
 pub enum Error {
-    NOT_MAPPED,
-    NO_MEM
+    NotMapped,
+    NoMem
 }
 
 pub fn init_memory(memsize: usize) {
@@ -28,12 +26,12 @@ pub fn init_memory(memsize: usize) {
         fn end();
     }
     let nframes = memsize / PAGE_SIZE;
-    let framesAddr = end as *mut PhysFrame; 
+    let frames_addr = end as *mut PhysFrame; 
     let mut freemem = VirtAddr::new(end as usize);
     freemem += size_of::<PhysFrame>() * nframes;
-    memset(framesAddr as *mut u8, 0, size_of::<PhysFrame>() * nframes);
+    memset(frames_addr as *mut u8, 0, size_of::<PhysFrame>() * nframes);
 
-    init_frame_allocator(framesAddr, freemem, nframes);
+    init_frame_allocator(frames_addr, freemem, nframes);
 }
 
 /// memset in c

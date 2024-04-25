@@ -1,6 +1,3 @@
-use core::mem::size_of;
-
-use crate::memory::page_table::PageTable;
 // stable modules
 use crate::{memory, println, test};
 use crate::memory::heap;

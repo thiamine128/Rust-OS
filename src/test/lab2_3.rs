@@ -42,7 +42,7 @@ pub fn tlb_refill_check() {
     let mut entrys: [usize; 2] = [0, 0];
     _do_tlb_refill(&mut entrys, VirtAddr::new(PAGE_SIZE), 0);
     
-    let (walk_page, walk_pte) = boot_pgdir.lookup(VirtAddr::new(PAGE_SIZE)).unwrap();
+    let (_, walk_pte) = boot_pgdir.lookup(VirtAddr::new(PAGE_SIZE)).unwrap();
     assert!((entrys[0] == (walk_pte.as_usize() >> 6)) as i32 + (entrys[1] == walk_pte.as_usize() >> 6) as i32 == 1);
     assert!(PhysAddr::from(pp2) == boot_pgdir.translate(VirtAddr::new(PAGE_SIZE)).unwrap());
 
@@ -55,17 +55,15 @@ pub fn tlb_refill_check() {
 
     
 	_do_tlb_refill(&mut entrys, VirtAddr::new(0x00400000), 0);
-    let (pp, walk_pte) = boot_pgdir.lookup(VirtAddr::new(0x00400000)).unwrap();
+    let (_, _) = boot_pgdir.lookup(VirtAddr::new(0x00400000)).unwrap();
 	assert!(boot_pgdir.translate(VirtAddr::new(0x00400000)).unwrap() == PhysAddr::from(pp3));
     
 	println!("test point 2 ok");
 
-	let mut badva = 0usize;
-    let mut entryhi = 0usize;
     let mut entrylo = 0usize;
 	let mut index = 0usize;
-	badva = 0x00400000;
-	entryhi = badva & 0xffffe000;
+	let mut badva = 0x00400000;
+	let mut entryhi = badva & 0xffffe000;
     asm!("mtc0 {}, $10", out(reg) entryhi);
     
 	//asm volatile("mtc0 %0, $10" : : "r"(entryhi));

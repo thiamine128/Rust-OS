@@ -1,10 +1,9 @@
-use core::{mem::{self, size_of}, ptr::NonNull, slice};
+use core::{mem::size_of, slice};
 
-use alloc::alloc::handle_alloc_error;
 use lazy_static::lazy_static;
 use spin::mutex::Mutex;
 
-use crate::{memory::frame, print, println};
+use crate::println;
 
 use super::{memset, mmu::{PhysAddr, PhysPageNum, VirtAddr, PAGE_SIZE}, Error};
 
@@ -25,8 +24,8 @@ pub fn frame_incref(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.lock().get_frame_mut_by_ppn(ppn).pf_ref += 1;
 }
 #[inline]
-pub fn init_frame_allocator(baseAddr: *mut PhysFrame, freemem: VirtAddr, nframes: usize) {
-    FRAME_ALLOCATOR.lock().init(baseAddr, freemem, nframes);
+pub fn init_frame_allocator(base_addr: *mut PhysFrame, freemem: VirtAddr, nframes: usize) {
+    FRAME_ALLOCATOR.lock().init(base_addr, freemem, nframes);
 }
 #[inline]
 pub fn frame_decref(ppn: PhysPageNum) {
@@ -87,8 +86,8 @@ impl<'a> FrameAllocator<'a> {
     }
 
     #[inline]
-    pub fn init(&mut self, baseAddr: *mut PhysFrame, freemem: VirtAddr, nframes: usize) {
-        self.frames = unsafe {slice::from_raw_parts_mut(baseAddr, nframes)};
+    pub fn init(&mut self, base_addr: *mut PhysFrame, freemem: VirtAddr, nframes: usize) {
+        self.frames = unsafe {slice::from_raw_parts_mut(base_addr, nframes)};
         self.nframes = nframes;
 
         let used_ppn = PhysPageNum::from(PhysAddr::from_kva(freemem));
@@ -108,7 +107,7 @@ impl<'a> FrameAllocator<'a> {
                 memset(ppn.into_kva().as_mut_ptr(), 0, PAGE_SIZE);
                 Ok(ppn)
             },
-            None => Err(Error::NO_MEM),
+            None => Err(Error::NoMem),
         }
     }
 
@@ -201,7 +200,7 @@ pub fn physical_memory_manage_strong_check() {
     let mut fa = FrameAllocator::new();
     let mut test_addr = end as usize;
     test_addr += FRAME_ALLOCATOR.lock().nframes * size_of::<PhysFrame>();
-    let mut freemem = test_addr + 15 * size_of::<PhysFrame>();
+    let freemem = test_addr + 15 * size_of::<PhysFrame>();
     //fa.init(test_addr as *mut PhysFrame, VirtAddr::new(test_addr), 15);
     memset(test_addr as *mut u8, 0, freemem - test_addr);
     fa.frames = unsafe {slice::from_raw_parts_mut(test_addr as *mut PhysFrame, 15)};

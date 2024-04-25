@@ -1,10 +1,10 @@
-use core::{borrow::BorrowMut, ptr::{addr_of_mut, null_mut}};
+use core::ptr::{addr_of_mut, null_mut};
 
-use spin::{lazy, mutex::Mutex, MutexGuard, RwLock};
+use spin::mutex::Mutex;
 
-use crate::{memory::{frame::{frame_dealloc, get_frame_ref, recover, set_frame_ref, steal}}, println};
+use crate::{memory::frame::{frame_dealloc, get_frame_ref, recover, set_frame_ref, steal}, println};
 
-use super::{frame::{self, frame_alloc, frame_decref, frame_incref}, mmu::*, tlb::tlb_invalidate, Error};
+use super::{frame::{frame_alloc, frame_decref, frame_incref}, mmu::*, tlb::tlb_invalidate, Error};
 use lazy_static::lazy_static;
 pub const PAGE_TABLE_ENTRIES: usize = PAGE_SIZE / 4;
 
@@ -84,7 +84,7 @@ impl PageTable {
                 frame_incref(ppn);
                 self.entries[va.pdx()] = Pte::new_from_ppn(ppn, PTE_C_CACHEABLE | PTE_V);
             } else {
-                return Err(Error::NOT_MAPPED);
+                return Err(Error::NotMapped);
             }
         }
         let page_table: &mut PageTable = unsafe {&mut *(ppn.into_kva().as_mut_ptr())};
