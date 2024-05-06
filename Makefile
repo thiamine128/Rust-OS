@@ -20,6 +20,7 @@ all: ASM
 ASM:
 	gcc -E src/init/start.S -o src/init/start.gen.S -I./include
 	gcc -E src/memory/tlb_asm.S -o src/memory/tlb_asm.gen.S -I./include
+	gcc -E src/exception/entry.S -o src/exception/entry.gen.S -I./include
 
 clean:
 	rm -rf target

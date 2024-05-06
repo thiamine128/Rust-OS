@@ -24,6 +24,10 @@ pub mod memory;
 pub mod device;
 /// bit util
 pub mod bitops;
+/// process
+pub mod process;
+/// handle exception
+pub mod exception;
 /// for test
 pub mod test;
 
