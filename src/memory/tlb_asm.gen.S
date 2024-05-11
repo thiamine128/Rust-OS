@@ -45,14 +45,14 @@ NO_SUCH_ENTRY:
  andi $6, $6, 0xff
 .globl do_tlb_refill_call;
 do_tlb_refill_call:
- addi $29, $29, -24
- sw $31, 20($29)
- addi $4, $29, 12
+ addi $29, $29, -28
+ sw $31, 24($29)
+ addi $4, $29, 16
  jal _do_tlb_refill
- lw $4, 12($29)
- lw $5, 16($29)
- lw $31, 20($29)
- addi $29, $29, 24
+ lw $4, 16($29)
+ lw $5, 20($29)
+ lw $31, 24($29)
+ addi $29, $29, 28
  mtc0 $4, $2
  mtc0 $5, $3
  nop

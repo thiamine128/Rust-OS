@@ -22,13 +22,10 @@ pub mod init;
 pub mod memory;
 /// serial device.
 pub mod device;
-/// bit util
-pub mod bitops;
-/// process
-pub mod process;
 /// handle exception
 pub mod exception;
-/// for test
+pub mod err;
+pub mod util;
 pub mod test;
 
 global_asm!(include_str!("init/start.gen.S"));

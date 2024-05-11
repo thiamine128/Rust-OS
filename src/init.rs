@@ -1,6 +1,7 @@
+use crate::memory;
 // stable modules
-use crate::{memory, println, test};
-use crate::memory::heap;
+use crate::println;
+use crate::memory::*;
 // unstable modules
 
 /// rust entry
@@ -10,8 +11,8 @@ pub extern "C" fn rust_main(_argc: u32, _argv: *const *const u8, _penv: *const *
     heap::init_heap();
     memory::init_memory(ram_low_size);
 
-    //test::lab2_1::lab2_1();
-    //test::lab2_2::lab2_2();
-    test::lab2_3::lab2_3();
+    //unsafe { frame::test::physical_memory_manage_strong_check(); }
+    //unsafe { frame::test::page_strong_check(); }
+
     panic!("Success!");
 }
