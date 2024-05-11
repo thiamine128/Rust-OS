@@ -2,7 +2,7 @@ use core::ptr::addr_of_mut;
 
 use crate::util::bitops::genmask;
 
-use super::{frame::{frame_alloc, frame_incref}, mmu::{VirtAddr, NASID, PAGE_SIZE, PGSHIFT, PTE_D, UENVS, ULIM, UPAGES, USTACKTOP, UTEMP, UVPT}, page_table::{PageTable}};
+use super::{frame::{frame_alloc, frame_incref}, mmu::{VirtAddr, NASID, PAGE_SIZE, PGSHIFT, PTE_D, UENVS, ULIM, UPAGES, USTACKTOP, UTEMP, UVPT}, page_table::PageTable};
 
 extern "C" {
     fn tlb_out(entry: usize);

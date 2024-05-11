@@ -13,6 +13,6 @@ pub extern "C" fn rust_main(_argc: u32, _argv: *const *const u8, _penv: *const *
 
     //unsafe { frame::test::physical_memory_manage_strong_check(); }
     //unsafe { frame::test::page_strong_check(); }
-
+    //unsafe { frame::test::tlb_refill_check(); }
     panic!("Success!");
 }
