@@ -1,10 +1,8 @@
-use core::{mem::size_of, slice};
-
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use spin::mutex::Mutex;
 
-use crate::{err::Error, println, util::queue::IndexLink};
+use crate::{err::Error, util::queue::IndexLink};
 
 use super::{memset, mmu::{PhysAddr, PhysPageNum, VirtAddr, PAGE_SIZE}};
 

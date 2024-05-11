@@ -1,8 +1,4 @@
-use core::{mem::size_of, slice};
-
 use alloc::vec::Vec;
-
-use crate::println;
 
 pub struct IndexLink {
     n: usize,

@@ -1,6 +1,4 @@
-use core::mem::size_of;
-
-use crate::{memory::{frame::{init_frame_allocator, PhysFrame}, mmu::VirtAddr}, util::queue::IndexLink};
+use crate::memory::{frame::init_frame_allocator, mmu::VirtAddr};
 
 use self::mmu::PAGE_SIZE;
 
