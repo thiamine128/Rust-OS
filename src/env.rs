@@ -1,7 +1,7 @@
 pub mod bare;
 pub mod schedule;
 
-use core::{borrow::Borrow, mem::size_of, ptr::{addr_of, addr_of_mut}};
+use core::{mem::size_of, ptr::{addr_of, addr_of_mut}};
 
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -310,7 +310,7 @@ impl<'a> EnvManager<'a> {
     }
 
     pub fn prepare_run(&mut self, ind: usize) -> (usize, usize) {
-        let p = unsafe {pre_env_run(self, ind)};
+        let p = pre_env_run(self, ind);
         if p.is_some() {
             return p.unwrap();
         }
@@ -435,7 +435,7 @@ pub mod test {
     pub fn pre_env_run(em: &mut EnvManager, e: usize) -> Option<(usize, usize)>{
         let tfp;
         if Some(e) == em.cur_env_ind {
-            let addr = ((KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe);
+            let addr = (KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe;
             tfp = unsafe {addr.as_ref()}.unwrap();
         } else {
             tfp = &em.get_env(e).env_tf;
