@@ -64,6 +64,10 @@ impl VirtAddr {
     pub const fn new(addr: usize) -> Self{
         Self(addr)
     }
+    #[inline]
+    pub fn zero() -> Self {
+        Self(0)
+    }
     /// the raw value of virtual address.
     #[inline]
     pub const fn as_usize(self) -> usize {
@@ -111,6 +115,10 @@ impl VirtAddr {
     #[inline]
     pub const fn page_offset(self) -> usize {
         self.0 & 0xfff
+    }
+    #[inline]
+    pub const fn is_aligned(self, align: usize) -> bool {
+        self.0 % align == 0
     }
 }
 
@@ -170,6 +178,25 @@ impl PhysAddr {
     #[inline]
     pub const fn into_kva(self) -> VirtAddr {
         VirtAddr::new(self.0 + ULIM)
+    }
+
+    #[inline]
+    pub const fn is_aligned(self, align: usize) -> bool {
+        self.0 % align == 0
+    }
+}
+
+impl Add<usize> for PhysAddr {
+    type Output = PhysAddr;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        Self::Output::new(self.0 + rhs)
+    }
+}
+
+impl AddAssign<usize> for PhysAddr {
+    fn add_assign(&mut self, rhs: usize) {
+        self.0 += rhs;
     }
 }
 

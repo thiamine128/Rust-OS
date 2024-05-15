@@ -39,22 +39,22 @@ NO_SUCH_ENTRY:
  j $31
 .end tlb_out; .size tlb_out, .- tlb_out
 
-.globl do_tlb_refill; .align 2; .type do_tlb_refill, @function; .ent do_tlb_refill; do_tlb_refill: .frame $29, 28, $0
- mfc0 $6, $8
- mfc0 $7, $10
- andi $7, $7, 0xff
+.globl do_tlb_refill; .align 2; .type do_tlb_refill, @function; .ent do_tlb_refill; do_tlb_refill: .frame $29, 24, $0
+ mfc0 $5, $8
+ mfc0 $6, $10
+ andi $6, $6, 0xff
 .globl do_tlb_refill_call;
 do_tlb_refill_call:
- addi $29, $29, -28
- sw $31, 24($29)
- addi $5, $29, 16
+ addi $29, $29, -24
+ sw $31, 20($29)
+ addi $4, $29, 12
  jal _do_tlb_refill
+ lw $4, 12($29)
  lw $5, 16($29)
- lw $6, 20($29)
- lw $31, 24($29)
- addi $29, $29, 28
- mtc0 $5, $2
- mtc0 $6, $3
+ lw $31, 20($29)
+ addi $29, $29, 24
+ mtc0 $4, $2
+ mtc0 $5, $3
  nop
 
 

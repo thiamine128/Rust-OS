@@ -2,6 +2,8 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 #![feature(step_trait)]
+#![feature(concat_idents)]
+#![allow(dead_code)]
 #![no_std]
 #![no_main]
 
@@ -10,7 +12,6 @@ use core::arch::global_asm;
 extern crate alloc;
 extern crate buddy_system_allocator;
 extern crate spin;
-extern crate lazy_static;
 
 /// kernel print.
 pub mod print;
@@ -27,6 +28,10 @@ pub mod exception;
 pub mod err;
 pub mod util;
 pub mod test;
+pub mod env;
 
 global_asm!(include_str!("init/start.gen.S"));
 global_asm!(include_str!("memory/tlb_asm.gen.S"));
+global_asm!(include_str!("env/env_asm.gen.S"));
+global_asm!(include_str!("exception/genex.gen.S"));
+global_asm!(include_str!("exception/entry.gen.S"));

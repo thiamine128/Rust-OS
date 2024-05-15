@@ -1,4 +1,6 @@
-use crate::err::Error;
+use core::ptr::addr_of_mut;
+
+use crate::{env::ASID, err::Error, init, println};
 
 use super::{frame::*, mmu::*, tlb::tlb_invalidate};
 pub const PAGE_TABLE_ENTRIES: usize = PAGE_SIZE / 4;
@@ -47,9 +49,23 @@ impl Pte {
     pub const fn valid(self) -> bool {
         self.0 & PTE_V != 0
     }
+
+    #[inline]
+    pub fn fill_tlb_entry(&mut self, pentrylo: &mut [usize; 2]) {
+        let mut ppte: *mut usize = addr_of_mut!(*self) as *mut usize;
+        ppte = ((ppte as usize) & !0x7) as *mut usize;
+        pentrylo[0] = (unsafe { *ppte } as usize) >> 6;
+        pentrylo[1] = (unsafe { *ppte.offset(1) } as usize) >> 6;
+    }
 }
 
 impl PageTable {
+    #[inline]
+    pub const fn new() -> Self {
+        Self {
+            entries: [Pte::new(0); PAGE_TABLE_ENTRIES]
+        }
+    }
     #[inline]
     fn walk_or_create(&mut self, va: VirtAddr, create: i32) -> Result<&mut Pte, Error> {
         let pte = self.entries[va.pdx()];
@@ -73,7 +89,7 @@ impl PageTable {
         Ok((pte.ppn(), pte))
     }
     #[inline]
-    pub fn remove(&mut self, asid: usize, va: VirtAddr) {
+    pub fn remove(&mut self, asid: ASID, va: VirtAddr) {
         match self.lookup(va) {
             Ok((ppn, pte)) => {
                 frame_decref(ppn);
@@ -84,7 +100,7 @@ impl PageTable {
         }
     }
     #[inline]
-    pub fn insert(&mut self, asid: usize, ppn: PhysPageNum, va: VirtAddr, perm: usize) -> Result<(), Error>{
+    pub fn insert(&mut self, asid: ASID, ppn: PhysPageNum, va: VirtAddr, perm: usize) -> Result<(), Error>{
         if let Ok(pte) = self.walk_or_create(va, 0) {
             if pte.valid() {
                 if pte.ppn() != ppn {
@@ -118,5 +134,26 @@ impl PageTable {
                 Some(PhysAddr::new_from_pte(pte, va.page_offset()))
             }
         }
+    }
+
+    #[inline]
+    pub fn map_segment(&mut self, asid: ASID, pa: PhysAddr, va: VirtAddr, size: usize, perm: usize) {
+
+        assert!(pa.is_aligned(PAGE_SIZE));
+        assert!(va.is_aligned(PAGE_SIZE));
+        assert!(size % PAGE_SIZE == 0);
+        for i in (0..size).step_by(PAGE_SIZE) {
+            self.insert(asid, PhysPageNum::from(pa + i), va + i, perm).unwrap();
+        }
+    }
+
+    #[inline]
+    pub fn set_entry(&mut self, ptx: usize, pte: Pte) {
+        self.entries[ptx] = pte;
+    }
+
+    #[inline]
+    pub fn get_entry(&self, ptx: usize) -> Pte {
+        self.entries[ptx]
     }
 }

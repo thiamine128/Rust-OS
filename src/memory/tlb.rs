@@ -1,6 +1,6 @@
 use core::ptr::addr_of_mut;
 
-use crate::util::bitops::genmask;
+use crate::{env::{cur_pgdir, ASID}, util::bitops::genmask};
 
 use super::{frame::{frame_alloc, frame_incref}, mmu::{VirtAddr, NASID, PAGE_SIZE, PGSHIFT, PTE_D, UENVS, ULIM, UPAGES, USTACKTOP, UTEMP, UVPT}, page_table::PageTable};
 
@@ -9,14 +9,14 @@ extern "C" {
 }
 
 #[inline]
-pub fn tlb_invalidate(asid: usize, va: VirtAddr) {
-    let entry = (va.as_usize() & !genmask(PGSHIFT, 0)) | (asid & (NASID - 1));
+pub fn tlb_invalidate(asid: ASID, va: VirtAddr) {
+    let entry = (va.as_usize() & !genmask(PGSHIFT, 0)) | (asid.as_usize() & (NASID - 1));
     unsafe {
         tlb_out(entry);
     }
 }
 
-fn passive_alloc(va: VirtAddr, pgdir: &mut PageTable, asid: usize) {
+fn passive_alloc(va: VirtAddr, pgdir: &mut PageTable, asid: ASID) {
     if va.as_usize() < UTEMP {
 		panic!("address too low");
 	}
@@ -48,18 +48,17 @@ fn passive_alloc(va: VirtAddr, pgdir: &mut PageTable, asid: usize) {
 
 
 #[no_mangle]
-pub extern "C" fn _do_tlb_refill(pgdir: &mut PageTable, pentrylo: &mut [usize; 2], va: VirtAddr, asid: usize) {
-	tlb_invalidate(asid, va);
+pub extern "C" fn _do_tlb_refill(pentrylo: &mut [usize; 2], va: VirtAddr, asid: ASID) {
+    cur_pgdir(|pgdir| {
+        tlb_invalidate(asid, va);
 
-	let pte = loop {
-        if let Ok((_, pte)) = pgdir.lookup(va) {
-            break pte;
-        }
-		passive_alloc(va, pgdir, asid);
-	};
-    
-    let mut ppte: *mut usize = addr_of_mut!(*pte) as *mut usize;
-    ppte = ((ppte as usize) & !0x7) as *mut usize;
-    pentrylo[0] = (unsafe { *ppte } as usize) >> 6;
-    pentrylo[1] = (unsafe { *ppte.offset(1) } as usize) >> 6;
+        let pte = loop {
+            if let Ok((_, pte)) = pgdir.lookup(va) {
+                break pte;
+            }
+            passive_alloc(va, pgdir, asid);
+        };
+        
+        pte.fill_tlb_entry(pentrylo);
+    })
 }

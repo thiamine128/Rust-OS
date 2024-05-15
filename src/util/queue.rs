@@ -1,4 +1,8 @@
+use core::{mem::size_of, slice};
+
 use alloc::vec::Vec;
+
+use crate::memory::mmu::VirtAddr;
 
 pub struct IndexLink {
     n: usize,
@@ -13,7 +17,7 @@ pub struct IndexIterator<'a> {
 
 impl IndexLink {
     #[inline]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         IndexLink {
             n: 0,
             le_next: Vec::new(),
@@ -21,10 +25,28 @@ impl IndexLink {
         }
     }
     #[inline]
+    pub fn init_from_ptr(&mut self, addr: VirtAddr, n: usize) {
+        self.n = n;
+        let next_addr = addr.as_mut_ptr();
+        let occupied = n + 2;
+        self.le_next = unsafe {
+            Vec::from_raw_parts(next_addr, occupied, occupied)
+        };
+        let prev_addr = (addr + occupied * size_of::<Option<usize>>()).as_mut_ptr();
+        self.le_prev = unsafe {
+            Vec::from_raw_parts(prev_addr, occupied, occupied)
+        };
+        self.le_next[n] = Some(n + 1);
+        self.le_prev[n + 1] = Some(n);
+    }
+
+    #[inline]
     pub fn init(&mut self, n: usize) {
         self.n = n;
         let occupied = n + 2;
+        self.le_next = Vec::with_capacity(occupied);
         self.le_next.resize(occupied, None);
+        self.le_prev = Vec::with_capacity(occupied);
         self.le_prev.resize(occupied, None);
         self.le_next[n] = Some(n + 1);
         self.le_prev[n + 1] = Some(n);
@@ -81,6 +103,10 @@ impl IndexLink {
             index_link: self,
             index: self.n
         }
+    }
+    #[inline]
+    pub fn get_size_for(len: usize) -> usize {
+        (len + 2) * size_of::<Option<usize>>() * 2
     }
 }
 

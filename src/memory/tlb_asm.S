@@ -28,22 +28,22 @@ NO_SUCH_ENTRY:
 	j       ra
 END(tlb_out)
 
-NESTED(do_tlb_refill, 28, zero)
-	mfc0    a2, CP0_BADVADDR
-	mfc0    a3, CP0_ENTRYHI
-	andi    a3, a3, 0xff /* ASID is stored in the lower 8 bits of CP0_ENTRYHI */
+NESTED(do_tlb_refill, 24, zero)
+	mfc0    a1, CP0_BADVADDR
+	mfc0    a2, CP0_ENTRYHI
+	andi    a2, a2, 0xff /* ASID is stored in the lower 8 bits of CP0_ENTRYHI */
 .globl do_tlb_refill_call;
 do_tlb_refill_call:
-	addi    sp, sp, -28 /* Allocate stack for arguments(4), return value(2), and return address(1) */
-	sw      ra, 24(sp) /* [sp + 24] - [sp + 27] store the return address */
-	addi    a1, sp, 16 /* [sp + 16] - [sp + 23] store the return value */
-	jal     _do_tlb_refill /* (PageTable*, Pte *, u_int, u_int) [sp + 0] - [sp + 15] reserved for 4 args */
-	lw      a1, 16(sp) /* Return value 0 - Even page table entry */
-	lw      a2, 20(sp) /* Return value 1 - Odd page table entry */
-	lw      ra, 24(sp) /* Return address */
-	addi    sp, sp, 28 /* Deallocate stack */
-	mtc0    a1, CP0_ENTRYLO0 /* Even page table entry */
-	mtc0    a2, CP0_ENTRYLO1 /* Odd page table entry */
+	addi    sp, sp, -24 /* Allocate stack for arguments(3), return value(2), and return address(1) */
+	sw      ra, 20(sp) /* [sp + 20] - [sp + 23] store the return address */
+	addi    a0, sp, 12 /* [sp + 12] - [sp + 19] store the return value */
+	jal     _do_tlb_refill /* (Pte *, u_int, u_int) [sp + 0] - [sp + 11] reserved for 3 args */
+	lw      a0, 12(sp) /* Return value 0 - Even page table entry */
+	lw      a1, 16(sp) /* Return value 1 - Odd page table entry */
+	lw      ra, 20(sp) /* Return address */
+	addi    sp, sp, 24 /* Deallocate stack */
+	mtc0    a0, CP0_ENTRYLO0 /* Even page table entry */
+	mtc0    a1, CP0_ENTRYLO1 /* Odd page table entry */
 	nop
 	/* Hint: use 'tlbwr' to write CP0.EntryHi/Lo into a random tlb entry. */
 	/* Exercise 2.10: Your code here. */

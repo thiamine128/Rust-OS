@@ -1,5 +1,5 @@
 [build]
 target = "mipsel-unknown-none"
-rustflags = ["-Clink-arg=-Tsrc/kernel.lds", "-Cforce-frame-pointers=yes"]
+rustflags = ["-Clink-args=-EL -Tsrc/kernel.lds -G 0 -static", "-Clink-dead-code=yes", "-Clinker=mips-linux-gnu-ld", "-g"]
 [unstable]
 build-std = ["core", "alloc"]

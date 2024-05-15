@@ -1,15 +1,13 @@
+use core::{alloc::Layout, mem::{self, size_of}, slice};
+
 use alloc::vec::Vec;
-use lazy_static::lazy_static;
 use spin::mutex::Mutex;
 
-use crate::{err::Error, util::queue::IndexLink};
+use crate::{err::Error, println, util::queue::IndexLink};
 
 use super::mmu::{PhysAddr, PhysPageNum, VirtAddr, PAGE_SIZE};
 
-lazy_static! {
-    static ref FRAME_ALLOCATOR: Mutex<FrameAllocator> = Mutex::new(FrameAllocator::new());
-}
-
+static FRAME_ALLOCATOR: Mutex<FrameAllocator> = Mutex::new(FrameAllocator::new());
 #[inline]
 pub fn frame_alloc() -> Result<PhysPageNum, Error> {
     FRAME_ALLOCATOR.lock().alloc()
@@ -30,11 +28,18 @@ pub fn init_frame_allocator(freemem: VirtAddr, nframes: usize) {
 pub fn frame_decref(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.lock().decref(ppn);
 }
+#[inline]
+pub fn frame_base_phy_addr() -> PhysAddr {
+    FRAME_ALLOCATOR.lock().base_phy_addr()
+}
+#[inline]
+pub fn frame_base_size() -> usize {
+    FRAME_ALLOCATOR.lock().base_size
+}
 
 #[inline]
 fn frame_clear(ppn: PhysPageNum) {
     let mut st = ppn.into_kva().as_usize();
-
     for _ in 0..PAGE_SIZE / 4 {
         unsafe {*(st as *mut u32) = 0};
         st += 4;
@@ -49,22 +54,34 @@ pub struct PhysFrame {
 pub struct FrameAllocator {
     frames: Vec<PhysFrame>,
     nframes: usize,
-    frames_free_list: IndexLink
+    frames_free_list: IndexLink,
+    base_addr: VirtAddr,
+    base_size: usize
 }
 
 impl FrameAllocator {
     #[inline]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             frames: Vec::new(),
             nframes: 0,
-            frames_free_list: IndexLink::new()
+            frames_free_list: IndexLink::new(),
+            base_addr: VirtAddr::new(0),
+            base_size: 0
         }
     }
 
     #[inline]
     pub fn init(&mut self, freemem: VirtAddr, nframes: usize) {
-        self.frames.resize(nframes, PhysFrame{ pf_ref: 0});
+        let frames_size = nframes * size_of::<PhysFrame>();
+        let layout = Layout::from_size_align(frames_size, PAGE_SIZE).unwrap();
+        let base_addr = VirtAddr::from_ptr(unsafe {
+          alloc::alloc::alloc(layout)
+        });
+        self.base_addr = base_addr;
+        self.base_size = frames_size;
+        let frames_addr = base_addr.as_mut_ptr();
+        self.frames = unsafe {Vec::from_raw_parts(frames_addr, nframes, nframes)};
         self.frames_free_list.init(nframes);
         self.nframes = nframes;
 
@@ -74,7 +91,7 @@ impl FrameAllocator {
         }
         for ppn in used_ppn..PhysPageNum::new(nframes) {
             self.frames[ppn.as_usize()].pf_ref = 0;
-            self.insert_head(ppn);
+            self.insert_tail(ppn);
         }
     }
 
@@ -94,7 +111,7 @@ impl FrameAllocator {
     #[inline]
     pub fn dealloc(&mut self, ppn: PhysPageNum) {
         assert!(self.frames[ppn.as_usize()].pf_ref == 0);
-        self.insert_head(ppn);
+        self.insert_tail(ppn);
     }
 
     #[inline]
@@ -108,13 +125,18 @@ impl FrameAllocator {
     }
 
     #[inline]
-    fn insert_head(&mut self, ppn: PhysPageNum) {
-        self.frames_free_list.insert_head(ppn.as_usize());
+    fn insert_tail(&mut self, ppn: PhysPageNum) {
+        self.frames_free_list.insert_tail(ppn.as_usize());
     }
 
     #[inline]
     fn pop_first(&mut self) {
         self.frames_free_list.remove(self.frames_free_list.first().unwrap());
+    }
+
+    #[inline]
+    pub fn base_phy_addr(&mut self) -> PhysAddr {
+        PhysAddr::from_kva(self.base_addr)
     }
 }
 
@@ -124,7 +146,7 @@ pub mod test {
 
     // use alloc::vec;
 
-    // use crate::{memory::{frame::*, mmu::{PDMAP, ULIM}, page_table::PageTable, tlb::_do_tlb_refill}, println};
+    // use crate::{env::ASID, memory::{frame::*, mmu::{PDMAP, ULIM}, page_table::PageTable, tlb::_do_tlb_refill}, println};
 
     // pub unsafe fn physical_memory_manage_strong_check() {
         
@@ -232,20 +254,22 @@ pub mod test {
     //     assert!(pp4 != pp3 && pp4 != pp2 && pp4 != pp1 && pp4 != pp0);
         
     //     while !frame_alloc().is_err() {}
-
+    //     let asid = ASID::new(0);
     //     // there is no free memory, so we can't allocate a page table
-    //     assert!(pgdir.insert(0, pp1, VirtAddr::new(0), 0).is_err());
+    //     assert!(pgdir.insert(asid, pp1, VirtAddr::new(0), 0).is_err());
     
     //     // should be no free memory
     //     assert!(frame_alloc().is_err());
 
+    //     let asid = ASID::new(0);
+
     //     // free pp0 and try again: pp0 should be used for page table
     //     frame_dealloc(pp0);
     //     // check if PTE != PP
-    //     assert!(pgdir.insert(0, pp1, VirtAddr::new(0), 0).is_ok());
+    //     assert!(pgdir.insert(asid, pp1, VirtAddr::new(0), 0).is_ok());
     //     // should be able to map pp2 at PAGE_SIZE because pp0 is already allocated for page table
-    //     assert!(pgdir.insert(0, pp2, VirtAddr::new(PAGE_SIZE), 0).is_ok());
-    //     assert!(pgdir.insert(0, pp3, VirtAddr::new(2 * PAGE_SIZE), 0).is_ok());
+    //     assert!(pgdir.insert(asid, pp2, VirtAddr::new(PAGE_SIZE), 0).is_ok());
+    //     assert!(pgdir.insert(asid, pp3, VirtAddr::new(2 * PAGE_SIZE), 0).is_ok());
     //     assert!(PhysAddr::from(pgdir.entries[0]) == PhysAddr::from(pp0));
     
     //     println!("va2pa(boot_pgdir, 0x0) is {:x}", pgdir.translate(VirtAddr::new(0)).unwrap().as_usize());
@@ -260,19 +284,19 @@ pub mod test {
     
     //     println!("start page_insert");
     //     // should be able to map pp2 at PAGE_SIZE because it's already there
-    //     assert!(pgdir.insert(0, pp2, VirtAddr::new(PAGE_SIZE), 0).is_ok());
+    //     assert!(pgdir.insert(asid, pp2, VirtAddr::new(PAGE_SIZE), 0).is_ok());
     //     assert!(pgdir.translate(VirtAddr::new(PAGE_SIZE)).unwrap() == PhysAddr::from(pp2));
     //     assert!(FRAME_ALLOCATOR.lock().frames[pp2.as_usize()].pf_ref == 1);
     
     //     // should not be able to map at PDMAP because need free page for page table
-    //     assert!(pgdir.insert(0, pp0, VirtAddr::new(PDMAP), 0).is_err());
+    //     assert!(pgdir.insert(asid, pp0, VirtAddr::new(PDMAP), 0).is_err());
     //     // remove pp1 try again
-    //     pgdir.remove(0, VirtAddr::new(0));
+    //     pgdir.remove(asid, VirtAddr::new(0));
     //     assert!(pgdir.translate(VirtAddr::new(0x0)).is_none());
-    //     assert!(pgdir.insert(0, pp0, VirtAddr::new(PDMAP), 0).is_ok());
+    //     assert!(pgdir.insert(asid, pp0, VirtAddr::new(PDMAP), 0).is_ok());
     
     //     // insert pp2 at 2*PAGE_SIZE (replacing pp2)
-    //     assert!(pgdir.insert(0, pp2, VirtAddr::new(2 * PAGE_SIZE), 0).is_ok());
+    //     assert!(pgdir.insert(asid, pp2, VirtAddr::new(2 * PAGE_SIZE), 0).is_ok());
     
     //     // should have pp2 at both 0 and PAGE_SIZE, pp2 nowhere, ...
     //     assert!(pgdir.translate(VirtAddr::new(PAGE_SIZE)).unwrap() == PhysAddr::from(pp2));
@@ -281,7 +305,7 @@ pub mod test {
     //     assert!(FRAME_ALLOCATOR.lock().frames[pp2.as_usize()].pf_ref == 2);
     //     assert!(FRAME_ALLOCATOR.lock().frames[pp3.as_usize()].pf_ref == 0);
     //     // try to insert PDMAP+PAGE_SIZE
-    //     assert!(pgdir.insert(0, pp2, VirtAddr::new(PDMAP + PAGE_SIZE), 0).is_ok());
+    //     assert!(pgdir.insert(asid, pp2, VirtAddr::new(PDMAP + PAGE_SIZE), 0).is_ok());
     //     assert!(FRAME_ALLOCATOR.lock().frames[pp2.as_usize()].pf_ref == 3);
     //     println!("end page_insert");
     
@@ -290,13 +314,13 @@ pub mod test {
     //     assert!(pp == pp3);
     
     //     // unmapping pp2 at PAGE_SIZE should keep pp1 at 2*PAGE_SIZE
-    //     pgdir.remove(0, VirtAddr::new(PAGE_SIZE));
+    //     pgdir.remove(asid, VirtAddr::new(PAGE_SIZE));
     //     assert!(pgdir.translate(VirtAddr::new(2 * PAGE_SIZE)).unwrap() == PhysAddr::from(pp2));
     //     assert!(FRAME_ALLOCATOR.lock().frames[pp2.as_usize()].pf_ref == 2);
     //     assert!(FRAME_ALLOCATOR.lock().frames[pp3.as_usize()].pf_ref == 0);
     
     //     // unmapping pp2 at 2*PAGE_SIZE should keep pp2 at PDMAP+PAGE_SIZE
-    //     pgdir.remove(0, VirtAddr::new(2 * PAGE_SIZE));
+    //     pgdir.remove(asid, VirtAddr::new(2 * PAGE_SIZE));
     //     assert!(pgdir.translate(VirtAddr::new(0)).is_none());
     //     assert!(pgdir.translate(VirtAddr::new(PAGE_SIZE)).is_none());
     //     assert!(pgdir.translate(VirtAddr::new(2 * PAGE_SIZE)).is_none());
@@ -304,7 +328,7 @@ pub mod test {
     //     assert!(FRAME_ALLOCATOR.lock().frames[pp3.as_usize()].pf_ref == 0);
     
     //     // unmapping pp2 at PDMAP+PAGE_SIZE should free it
-    //     pgdir.remove(0, VirtAddr::new(PDMAP + PAGE_SIZE));
+    //     pgdir.remove(asid, VirtAddr::new(PDMAP + PAGE_SIZE));
     //     assert!(pgdir.translate(VirtAddr::new(0)).is_none());
     //     assert!(pgdir.translate(VirtAddr::new(PAGE_SIZE)).is_none());
     //     assert!(pgdir.translate(VirtAddr::new(2 * PAGE_SIZE)).is_none());
@@ -366,15 +390,16 @@ pub mod test {
     //     while !frame_alloc().is_err() {}
     //     // free pp0 and try again: pp0 should be used for page table
     //     frame_dealloc(pp0);
+    //     let asid = ASID::new(0);
     //     // check if PTE != PP
-    //     assert!(boot_pgdir.insert(0, pp1, VirtAddr::new(0x0), 0).is_ok());
+    //     assert!(boot_pgdir.insert(asid, pp1, VirtAddr::new(0x0), 0).is_ok());
     //     // should be able to map pp2 at PAGE_SIZE because pp0 is already allocated for page table
-    //     assert!(boot_pgdir.insert(0, pp2, VirtAddr::new(PAGE_SIZE), 0).is_ok());
+    //     assert!(boot_pgdir.insert(asid, pp2, VirtAddr::new(PAGE_SIZE), 0).is_ok());
     
     //     println!("tlb_refill_check() begin!");
     
     //     let mut entrys: [usize; 2] = [0, 0];
-    //     _do_tlb_refill(boot_pgdir, &mut entrys, VirtAddr::new(PAGE_SIZE), 0);
+    //     _do_tlb_refill(boot_pgdir, &mut entrys, VirtAddr::new(PAGE_SIZE), asid);
         
     //     let (walk_page, walk_pte) = boot_pgdir.lookup(VirtAddr::new(PAGE_SIZE)).unwrap();
     //     assert!((entrys[0] == (walk_pte.as_usize() >> 6)) as i32 + (entrys[1] == walk_pte.as_usize() >> 6) as i32 == 1);
@@ -388,7 +413,7 @@ pub mod test {
     //     assert!(boot_pgdir.lookup(VirtAddr::new(0x00400000)).is_err());
     
         
-    //     _do_tlb_refill(boot_pgdir, &mut entrys, VirtAddr::new(0x00400000), 0);
+    //     _do_tlb_refill(boot_pgdir, &mut entrys, VirtAddr::new(0x00400000), asid);
     //     let (pp, walk_pte) = boot_pgdir.lookup(VirtAddr::new(0x00400000)).unwrap();
     //     assert!(boot_pgdir.translate(VirtAddr::new(0x00400000)).unwrap() == PhysAddr::from(pp3));
         
