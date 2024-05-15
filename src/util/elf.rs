@@ -2,15 +2,15 @@ use core::{cmp::min, mem::size_of};
 
 use crate::{err::Error, memory::mmu::{VirtAddr, PAGE_SIZE, PTE_D, PTE_V}};
 
-type Elf32_Half = u16;
-type Elf32_Word = u32;
-type Elf32_Sword = i32;
-type Elf32_Xword = u64;
-type Elf32_Sxword = i64;
-type Elf32_Addr = u32;
-type Elf32_Off = u32;
-type Elf32_Section = u16;
-type Elf32_Symndx = u32;
+type Elf32Half = u16;
+type Elf32Word = u32;
+type Elf32Sword = i32;
+type Elf32Xword = u64;
+type Elf32Sxword = i64;
+type Elf32Addr = u32;
+type Elf32Off = u32;
+type Elf32Section = u16;
+type Elf32Symndx = u32;
 
 pub const EI_NIDENT: usize = 16;
 pub const EI_MAG0: usize = 0;
@@ -23,37 +23,37 @@ pub const EI_MAG3: usize = 3;
 pub const ELFMAG3: u8 = b'F';
 
 #[repr(C)]
-pub struct Elf32_Ehdr {
+pub struct Elf32Ehdr {
     e_ident: [u8; EI_NIDENT],
-    e_type: Elf32_Half,
-    e_machine: Elf32_Half,
-    e_version: Elf32_Word,
-    pub e_entry: Elf32_Addr,
-    e_phoff: Elf32_Off,
-    e_shoff: Elf32_Off,
-    e_flags: Elf32_Word,
-    e_ehsize: Elf32_Half,
-    e_phentsize: Elf32_Half,
-    e_phnum: Elf32_Half,
-    e_shentsize: Elf32_Half,
-    e_shnum: Elf32_Half,
-    e_shstrndx: Elf32_Half
+    e_type: Elf32Half,
+    e_machine: Elf32Half,
+    e_version: Elf32Word,
+    pub e_entry: Elf32Addr,
+    e_phoff: Elf32Off,
+    e_shoff: Elf32Off,
+    e_flags: Elf32Word,
+    e_ehsize: Elf32Half,
+    e_phentsize: Elf32Half,
+    e_phnum: Elf32Half,
+    e_shentsize: Elf32Half,
+    e_shnum: Elf32Half,
+    e_shstrndx: Elf32Half
 }
 
 #[repr(C)]
-pub struct Elf32_Phdr {
-    pub p_type: Elf32_Word,
-    pub p_offset: Elf32_Off,
-    p_vaddr: Elf32_Addr,
-    p_paddr: Elf32_Addr,
-    p_filesz: Elf32_Word,
-    p_memsz: Elf32_Word,
-    p_flags: Elf32_Word,
-    p_align: Elf32_Word
+pub struct Elf32Phdr {
+    pub p_type: Elf32Word,
+    pub p_offset: Elf32Off,
+    p_vaddr: Elf32Addr,
+    p_paddr: Elf32Addr,
+    p_filesz: Elf32Word,
+    p_memsz: Elf32Word,
+    p_flags: Elf32Word,
+    p_align: Elf32Word
 }
 
 pub struct PhdrIterator<'a> {
-    ehdr: &'a Elf32_Ehdr,
+    ehdr: &'a Elf32Ehdr,
     ind: usize
 }
 
@@ -74,19 +74,19 @@ pub const PT_HIPROC: usize = 0x7fffffff; /* End of processor-specific */
 
 /* Legal values for p_flags (segment flags).  */
 
-pub const PF_X: u32 = (1 << 0);	       /* Segment is executable */
-pub const PF_W: u32 = (1 << 1);	       /* Segment is writable */
-pub const PF_R: u32 = (1 << 2);	       /* Segment is readable */
+pub const PF_X: u32 = 1 << 0;	       /* Segment is executable */
+pub const PF_W: u32 = 1 << 1;	       /* Segment is writable */
+pub const PF_R: u32 = 1 << 2;	       /* Segment is readable */
 pub const PF_MASKPROC: u32 = 0xf0000000; /* Processor-specific */
 
 /* Utils provided by our ELF loader. */
 
 
-pub fn elf_from(binary: &[u8], size: usize) -> Option<&Elf32_Ehdr> {
-    let ehdr_ptr = binary.as_ptr() as *const Elf32_Ehdr;
+pub fn elf_from(binary: &[u8], size: usize) -> Option<&Elf32Ehdr> {
+    let ehdr_ptr = binary.as_ptr() as *const Elf32Ehdr;
     let ehdr = unsafe { ehdr_ptr.as_ref() };
     let ehdr = ehdr.unwrap();
-    if size >= size_of::<Elf32_Ehdr>() && ehdr.e_ident[EI_MAG0] == ELFMAG0
+    if size >= size_of::<Elf32Ehdr>() && ehdr.e_ident[EI_MAG0] == ELFMAG0
         && ehdr.e_ident[EI_MAG1] == ELFMAG1 && ehdr.e_ident[EI_MAG2] == ELFMAG2
         && ehdr.e_ident[EI_MAG3] == ELFMAG3 {
         Some(ehdr)
@@ -95,7 +95,7 @@ pub fn elf_from(binary: &[u8], size: usize) -> Option<&Elf32_Ehdr> {
     }
 }
 
-pub fn elf_load_seg<F>(ph: &Elf32_Phdr, bin: &[u8], mut map_page: F) -> Result<(), Error>
+pub fn elf_load_seg<F>(ph: &Elf32Phdr, bin: &[u8], mut map_page: F) -> Result<(), Error>
 where F: FnMut(VirtAddr, usize, usize, Option<&[u8]>, usize)->Result<(), Error> {
     let va = VirtAddr::new(ph.p_vaddr as usize);
     let bin_size = ph.p_filesz as usize;
@@ -141,7 +141,7 @@ impl<'a> Iterator for PhdrIterator<'a> {
     }
 }
 
-impl Elf32_Ehdr {
+impl Elf32Ehdr {
     pub fn phdr_iter(&self) -> PhdrIterator {
         PhdrIterator {
             ehdr: self,

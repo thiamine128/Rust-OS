@@ -1,9 +1,9 @@
-use core::{alloc::Layout, mem::{self, size_of}, slice};
+use core::{alloc::Layout, mem::size_of};
 
 use alloc::vec::Vec;
 use spin::mutex::Mutex;
 
-use crate::{err::Error, println, util::queue::IndexLink};
+use crate::{err::Error, util::queue::IndexLink};
 
 use super::mmu::{PhysAddr, PhysPageNum, VirtAddr, PAGE_SIZE};
 

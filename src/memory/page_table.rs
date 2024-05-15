@@ -1,6 +1,6 @@
 use core::ptr::addr_of_mut;
 
-use crate::{env::ASID, err::Error, init, println};
+use crate::{env::ASID, err::Error};
 
 use super::{frame::*, mmu::*, tlb::tlb_invalidate};
 pub const PAGE_TABLE_ENTRIES: usize = PAGE_SIZE / 4;
@@ -56,6 +56,10 @@ impl Pte {
         ppte = ((ppte as usize) & !0x7) as *mut usize;
         pentrylo[0] = (unsafe { *ppte } as usize) >> 6;
         pentrylo[1] = (unsafe { *ppte.offset(1) } as usize) >> 6;
+    }
+    #[inline]
+    pub const fn addr(self) -> PhysAddr {
+        PhysAddr::new(self.0 & !0xfff)
     }
 }
 
@@ -155,5 +159,13 @@ impl PageTable {
     #[inline]
     pub fn get_entry(&self, ptx: usize) -> Pte {
         self.entries[ptx]
+    }
+
+    #[inline]
+    pub fn enter(&mut self, pdx: usize) -> &mut Self {
+        let paddr: *mut PageTable = self.entries[pdx].addr().into_kva().as_mut_ptr();
+        unsafe {
+            paddr.as_mut().unwrap()
+        }
     }
 }

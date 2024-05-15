@@ -1,9 +1,5 @@
-use core::arch::global_asm;
-use core::mem::size_of;
-
 use crate::env;
 use crate::env::schedule;
-use crate::exception::traps::Trapframe;
 use crate::memory;
 // stable modules
 use crate::println;

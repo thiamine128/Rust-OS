@@ -1,5 +1,6 @@
 include include.mk
 
+export CC CFLAGS LD LDFLAGS
 target_dir := os_target
 mos_elf := $(target_dir)/mos
 user_disk := $(target_dir)/fs.img
@@ -39,3 +40,6 @@ gdb:
 
 doc:
 	cargo doc --bin mos_rust
+
+users:
+	$(MAKE) -C user/bare

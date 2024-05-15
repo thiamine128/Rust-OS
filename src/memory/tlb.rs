@@ -1,5 +1,3 @@
-use core::ptr::addr_of_mut;
-
 use crate::{env::{cur_pgdir, ASID}, util::bitops::genmask};
 
 use super::{frame::{frame_alloc, frame_incref}, mmu::{VirtAddr, NASID, PAGE_SIZE, PGSHIFT, PTE_D, UENVS, ULIM, UPAGES, USTACKTOP, UTEMP, UVPT}, page_table::PageTable};
@@ -21,15 +19,15 @@ fn passive_alloc(va: VirtAddr, pgdir: &mut PageTable, asid: ASID) {
 		panic!("address too low");
 	}
 
-	if va.as_usize() >= USTACKTOP && va.as_usize() < USTACKTOP + PAGE_SIZE {
+	if va >= USTACKTOP && va < USTACKTOP + PAGE_SIZE {
 		panic!("invalid memory");
 	}
 
-	if va.as_usize() >= UENVS && va.as_usize() < UPAGES {
+	if va >= UENVS && va < UPAGES {
 		panic!("envs zone");
 	}
 
-	if va.as_usize() >= UPAGES && va.as_usize() < UVPT {
+	if va >= UPAGES && va  < UVPT {
 		panic!("pages zone");
 	}
 
@@ -39,7 +37,7 @@ fn passive_alloc(va: VirtAddr, pgdir: &mut PageTable, asid: ASID) {
     let ppn = frame_alloc().unwrap();
     frame_incref(ppn);
     pgdir.insert(asid, ppn, va.page_align_down(), 
-        if va.as_usize() >= UVPT && va.as_usize() < ULIM {
+        if va >= UVPT && va.as_usize() < ULIM {
             0
         } else {
             PTE_D

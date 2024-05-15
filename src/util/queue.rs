@@ -1,4 +1,4 @@
-use core::{mem::size_of, slice};
+use core::mem::size_of;
 
 use alloc::vec::Vec;
 

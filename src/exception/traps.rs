@@ -1,5 +1,3 @@
-use core::fmt::Display;
-
 use crate::println;
 
 extern "C" {
