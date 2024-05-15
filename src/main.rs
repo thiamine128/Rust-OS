@@ -3,6 +3,7 @@
 #![feature(alloc_error_handler)]
 #![feature(step_trait)]
 #![feature(concat_idents)]
+#![feature(sync_unsafe_cell)]
 #![allow(dead_code)]
 #![no_std]
 #![no_main]
@@ -29,6 +30,7 @@ pub mod err;
 pub mod util;
 pub mod test;
 pub mod env;
+pub mod sync;
 
 global_asm!(include_str!("init/start.gen.S"));
 global_asm!(include_str!("memory/tlb_asm.gen.S"));

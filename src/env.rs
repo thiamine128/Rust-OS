@@ -410,6 +410,9 @@ pub fn env_free(ind: usize) {
 pub fn env_create(binary: &[u8], size: usize, priority: usize) -> EnvID {
     ENV_MANAGER.lock().create(binary, size, priority)
 }
+pub fn env_run(ind: usize) {
+    
+}
 pub fn cur_pgdir<F>(mut f: F)
 where
     F : FnMut(&mut PageTable) {

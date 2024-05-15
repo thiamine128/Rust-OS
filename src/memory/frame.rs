@@ -1,40 +1,40 @@
-use core::{alloc::Layout, mem::size_of};
+use core::{alloc::Layout, cell::SyncUnsafeCell, mem::size_of};
 
 use alloc::vec::Vec;
-use spin::mutex::Mutex;
 
-use crate::{err::Error, util::queue::IndexLink};
+use crate::{err::Error, sync::cell::UPSafeCell, util::queue::IndexLink};
 
 use super::mmu::{PhysAddr, PhysPageNum, VirtAddr, PAGE_SIZE};
 
-static FRAME_ALLOCATOR: Mutex<FrameAllocator> = Mutex::new(FrameAllocator::new());
+static FRAME_ALLOCATOR: UPSafeCell<FrameAllocator> = UPSafeCell::new(FrameAllocator::new());
+
 #[inline]
 pub fn frame_alloc() -> Result<PhysPageNum, Error> {
-    FRAME_ALLOCATOR.lock().alloc()
+    FRAME_ALLOCATOR.borrow_mut().alloc()
 }
 #[inline]
 pub fn frame_dealloc(ppn: PhysPageNum) {
-    FRAME_ALLOCATOR.lock().dealloc(ppn);
+    FRAME_ALLOCATOR.borrow_mut().dealloc(ppn);
 }
 #[inline]
 pub fn frame_incref(ppn: PhysPageNum) {
-    FRAME_ALLOCATOR.lock().frames[ppn.as_usize()].pf_ref += 1;
+    FRAME_ALLOCATOR.borrow_mut().frames[ppn.as_usize()].pf_ref += 1;
 }
 #[inline]
 pub fn init_frame_allocator(freemem: VirtAddr, nframes: usize) {
-    FRAME_ALLOCATOR.lock().init(freemem, nframes);
+    FRAME_ALLOCATOR.borrow_mut().init(freemem, nframes);
 }
 #[inline]
 pub fn frame_decref(ppn: PhysPageNum) {
-    FRAME_ALLOCATOR.lock().decref(ppn);
+    FRAME_ALLOCATOR.borrow_mut().decref(ppn);
 }
 #[inline]
 pub fn frame_base_phy_addr() -> PhysAddr {
-    FRAME_ALLOCATOR.lock().base_phy_addr()
+    FRAME_ALLOCATOR.borrow_mut().base_phy_addr()
 }
 #[inline]
 pub fn frame_base_size() -> usize {
-    FRAME_ALLOCATOR.lock().base_size
+    FRAME_ALLOCATOR.borrow_mut().base_size
 }
 
 #[inline]
