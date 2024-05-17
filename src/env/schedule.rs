@@ -1,6 +1,6 @@
-use super::{env_sched, ENV_MANAGER};
+use super::env_sched;
 
 #[no_mangle]
 pub extern "C" fn schedule(y: i32) {
-    env_sched(0);
+    env_sched(y);
 }

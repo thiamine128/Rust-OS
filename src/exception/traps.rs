@@ -1,5 +1,3 @@
-use crate::{print, println};
-
 extern "C" {
     fn handle_int();
     fn handle_tlb();

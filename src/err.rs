@@ -16,3 +16,9 @@ pub enum Error {
     NotExec = 13,
     NotMapped = 14
 }
+
+impl Into<i32> for Error {
+    fn into(self) -> i32 {
+        -(self as i32)
+    }
+}

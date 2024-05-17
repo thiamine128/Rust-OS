@@ -5,9 +5,8 @@ pub mod syscall;
 use core::{fmt::{self, LowerHex}, mem::size_of, ptr::{addr_of, addr_of_mut}};
 
 use alloc::vec::Vec;
-use spin::Mutex;
 
-use crate::{err::Error, exception::traps::{Trapframe, STATUS_EXL, STATUS_IE, STATUS_IM7, STATUS_UM}, memory::{frame::{frame_alloc, frame_base_phy_addr, frame_base_size, frame_decref, frame_incref}, mmu::{PhysAddr, PhysPageNum, VirtAddr, KSTACKTOP, NASID, PDSHIFT, PGSHIFT, PTE_G, PTE_V, UENVS, UPAGES, USTACKTOP, UTOP, UVPT}, page_table::{PageTable, Pte, PAGE_TABLE_ENTRIES}, tlb::tlb_invalidate}, print, println, sync::cell::UPSafeCell, util::{elf::{elf_from, elf_load_seg, Elf32Phdr, PT_LOAD}, queue::IndexLink}};
+use crate::{err::Error, exception::traps::{Trapframe, STATUS_EXL, STATUS_IE, STATUS_IM7, STATUS_UM}, memory::{frame::{frame_alloc, frame_base_phy_addr, frame_base_size, frame_decref, frame_incref}, mmu::{PhysAddr, PhysPageNum, VirtAddr, KSTACKTOP, NASID, PDSHIFT, PGSHIFT, PTE_G, PTE_V, UENVS, UPAGES, USTACKTOP, UTOP, UVPT}, page_table::{PageTable, Pte, PAGE_TABLE_ENTRIES}, tlb::tlb_invalidate}, println, sync::cell::UPSafeCell, util::{elf::{elf_from, elf_load_seg, Elf32Phdr, PT_LOAD}, queue::IndexLink}};
 
 const LOG2NENV: usize = 10;
 const NENV: usize = 1 << LOG2NENV;
@@ -20,8 +19,30 @@ extern "C" {
 }
 
 #[inline]
-pub fn env_init() {
-    ENV_MANAGER.borrow_mut().init();
+pub fn env_init() { ENV_MANAGER.borrow_mut().init(); }
+
+#[inline]
+pub fn get_cur_env_ind() -> Option<usize> { ENV_MANAGER.borrow_mut().cur_env_ind }
+
+#[inline]
+pub fn get_cur_env_id() -> Option<EnvID>{
+    let em = ENV_MANAGER.borrow_mut();
+    match em.cur_env_ind {
+        Some(ind) => Some(em.envs[ind].env_id),
+        None => None
+    }
+}
+
+#[inline]
+pub fn envid2ind(envid: EnvID, checkperm: i32) -> Result<usize, Error> { ENV_MANAGER.borrow_mut().envid2ind(envid, checkperm) }
+
+#[inline]
+pub fn user_tlb_mod_entry() -> usize {
+    let em = ENV_MANAGER.borrow_mut();
+    let ind = em.cur_env_ind.unwrap();
+    let ent = em.envs[ind].env_user_tlb_mod_entry;
+    drop(em);
+    return ent;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -83,6 +104,7 @@ impl ASID {
         self.0
     } 
 }
+
 impl EnvID {
     #[inline]
     pub fn new(v: usize) -> Self {
@@ -99,6 +121,12 @@ impl EnvID {
     #[inline]
     pub fn envx(self) -> usize {
         self.0 & (NENV - 1)
+    }
+}
+
+impl Default for EnvID {
+    fn default() -> Self {
+        Self(0)
     }
 }
 
@@ -126,6 +154,10 @@ impl<'a> Env<'a> {
             env_user_tlb_mod_entry: 0,
             env_runs: 0
         }
+    }
+
+    pub fn load_tf(&mut self, tf: *const Trapframe) {
+        self.env_tf = unsafe {*tf};
     }
 }
 
@@ -456,47 +488,7 @@ where
         f(pgdir);
     }
 }
-#[inline]
-pub fn curenv_id() -> EnvID{
-    let em = ENV_MANAGER.borrow_mut();
-    let ind = em.cur_env_ind.unwrap();
-    em.envs[ind].env_id
-}
-#[inline]
-pub fn envid2ind(envid: EnvID, checkperm: i32) -> Result<usize, Error> {
-    let em = ENV_MANAGER.borrow_mut();
-    em.envid2ind(envid, checkperm)
-}
-#[inline]
-pub fn env_set_tlb_mod_entry(ind: usize, func: usize) {
-    let mut em = ENV_MANAGER.borrow_mut();
-    em.envs[ind].env_user_tlb_mod_entry = func;
-}
-#[inline]
-pub fn env_asid(ind: usize) -> ASID {
-    let em = ENV_MANAGER.borrow_mut();
-    em.envs[ind].env_asid
-}
-#[inline]
-pub fn set_env_tf(ind: usize, tf: *const Trapframe) {
-    let mut em = ENV_MANAGER.borrow_mut();
-    em.envs[ind].env_tf = unsafe {*tf};
-}
-#[inline]
-pub fn env_accept<F>(ind: usize, mut f: F)
-where
-    F: FnMut(&mut Env) {
-    let mut em = ENV_MANAGER.borrow_mut();
-    f(&mut em.envs[ind]);
-}
-#[inline]
-pub fn user_tlb_mod_entry() -> usize {
-    let em = ENV_MANAGER.borrow_mut();
-    let ind = em.cur_env_ind.unwrap();
-    let ent = em.envs[ind].env_user_tlb_mod_entry;
-    drop(em);
-    return ent;
-}
+
 #[macro_export]
 macro_rules! env_create_pri {
     ($name: ident, $pri: expr) => {
