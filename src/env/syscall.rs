@@ -1,12 +1,10 @@
-use core::{default, ffi::CStr, mem::{self, size_of}, num, ptr::{addr_of, slice_from_raw_parts, write_volatile}, slice};
+use core::{default, ffi::CStr, mem::{self, size_of}, num, ptr::{addr_of, slice_from_raw_parts, write_volatile}, slice, usize};
 
-use num_enum::{FromPrimitive, TryFromPrimitive};
 
 use crate::{env::{curenv_id, env_accept, env_alloc, env_asid, env_destroy, env_pgdir, env_sched, env_set_tlb_mod_entry, envid2ind, set_env_tf, EnvID}, err::Error, exception::traps::Trapframe, memory::{frame::frame_alloc, mmu::{PhysAddr, VirtAddr, KSEG1, KSTACKTOP, PTE_V, UTEMP, UTOP}}, print::{printcharc, scancharc}, println};
 
 use super::{EnvStatus, ASID, ENV_MANAGER};
 
-#[derive(TryFromPrimitive)]
 #[repr(usize)]
 pub enum SyscallID {
 	Putchar,
@@ -28,6 +26,32 @@ pub enum SyscallID {
 	WriteDev,
 	ReadDev,
 	SysNo,
+}
+
+impl From<usize> for SyscallID {
+	fn from(value: usize) -> Self {
+		match value {
+			x if x == SyscallID::Putchar as usize => SyscallID::Putchar,
+			x if x == SyscallID::PrintCons as usize => SyscallID::PrintCons,
+			x if x == SyscallID::GetEnvID as usize => SyscallID::GetEnvID,
+			x if x == SyscallID::Yield as usize => SyscallID::Yield,
+			x if x == SyscallID::EnvDestroy as usize => SyscallID::EnvDestroy,
+			x if x == SyscallID::SetTlbModEntry as usize => SyscallID::SetTlbModEntry,
+			x if x == SyscallID::MemAlloc as usize => SyscallID::MemAlloc,
+			x if x == SyscallID::MemMap as usize => SyscallID::MemMap,
+			x if x == SyscallID::MemUnmap as usize => SyscallID::MemUnmap,
+			x if x == SyscallID::Exofork as usize => SyscallID::Exofork,
+			x if x == SyscallID::SetEnvStatus as usize => SyscallID::SetEnvStatus,
+			x if x == SyscallID::SetTrapframe as usize => SyscallID::SetTrapframe,
+			x if x == SyscallID::Panic as usize => SyscallID::Panic,
+			x if x == SyscallID::IpcTrySend as usize => SyscallID::IpcTrySend,
+			x if x == SyscallID::IpcRecv as usize => SyscallID::IpcRecv,
+			x if x == SyscallID::CGetC as usize => SyscallID::CGetC,
+			x if x == SyscallID::WriteDev as usize => SyscallID::WriteDev,
+			x if x == SyscallID::ReadDev as usize => SyscallID::ReadDev,
+			_ => SyscallID::SysNo
+		}
+	}
 }
 
 fn sys_putchar(c: i32) {
@@ -412,7 +436,7 @@ pub extern "C" fn do_syscall(tf: &mut Trapframe) {
 		return;
 	}
 	tf.cp0_epc += 4;
-	let func_ptr = get_syscall(SyscallID::try_from(sysno).unwrap()) as *const ();
+	let func_ptr = get_syscall(SyscallID::from(sysno)) as *const ();
 	let arg1 = tf.regs[5];
 	let arg2 = tf.regs[6];
 	let arg3 = tf.regs[7];

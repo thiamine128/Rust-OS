@@ -1,12 +1,9 @@
 use crate::env;
-use crate::env::env_accept;
 use crate::env::schedule;
 use crate::memory;
 // stable modules
 use crate::println;
 use crate::memory::*;
-use crate::env::bare::*;
-use crate::env_create_pri;
 // unstable modules
 
 /// rust entry
