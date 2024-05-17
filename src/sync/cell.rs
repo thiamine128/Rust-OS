@@ -12,7 +12,7 @@ impl<T> UPSafeCell<T> {
             inner: RefCell::new(value)
         }
     }
-
+    #[inline]
     pub fn borrow_mut(&self) -> RefMut<'_, T>{
         self.inner.borrow_mut()
     }

@@ -36,7 +36,7 @@ pub const UXSTACKTOP: VirtAddr = UTOP;
 pub const USTACKTOP: VirtAddr = VirtAddr::new(UTOP.0 - 2 * PTMAP);
 pub const UTEXT: usize = PDMAP;
 pub const UCOW: usize = UTEXT - PTMAP;
-pub const UTEMP: usize = UCOW - PTMAP;
+pub const UTEMP: VirtAddr = VirtAddr::new(UCOW - PTMAP);
 
 /// Physical address, wrapped numeric value.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -65,7 +65,7 @@ impl VirtAddr {
         Self(addr)
     }
     #[inline]
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self(0)
     }
     /// the raw value of virtual address.

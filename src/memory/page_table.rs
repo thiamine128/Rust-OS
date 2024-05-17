@@ -90,7 +90,16 @@ impl PageTable {
     #[inline]
     pub fn lookup(&mut self, va: VirtAddr) -> Result<(PhysPageNum, &mut Pte), Error> {
         let pte = self.walk_or_create(va, 0)?;
-        Ok((pte.ppn(), pte))
+        if !pte.valid() {
+            Err(Error::NotMapped)
+        } else {
+            Ok((pte.ppn(), pte))
+        }
+    }
+    #[inline]
+    pub fn lookup_ppn(&mut self, va: VirtAddr) -> Result<PhysPageNum, Error> {
+        let pte = self.walk_or_create(va, 0)?;
+        Ok(pte.ppn())
     }
     #[inline]
     pub fn remove(&mut self, asid: ASID, va: VirtAddr) {

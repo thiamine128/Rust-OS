@@ -1,6 +1,10 @@
 #ifndef _MMU_H_
 #define _MMU_H_
 
+#include <string.h>
+#include <types.h>
+#include <error.h>
+
 /*
  * Part 1.  Page table/directory defines.
  */
@@ -119,6 +123,11 @@
  a     0 ------------>  +----------------------------+ ----------------------------
  o
 */
+
+
+typedef u_long Pde;
+typedef u_long Pte;
+
 
 #define KERNBASE 0x80020000
 

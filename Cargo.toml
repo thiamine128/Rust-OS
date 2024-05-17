@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 spin = {"version" = "0.9.8"}
 buddy_system_allocator = "0.9.1"
+num_enum = { version = "0.7.2", default-features = false, features = ["complex-expressions", "external_doc"] }
 
 [profile.dev]
 panic = "abort"

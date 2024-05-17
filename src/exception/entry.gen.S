@@ -1,22 +1,21 @@
-# 0 "src/exception/entry.S"
-# 0 "<built-in>"
-# 0 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
-# 0 "<command-line>" 2
 # 1 "src/exception/entry.S"
-# 1 "./include/asm/asm.h" 1
-# 1 "./include/asm/cp0regdef.h" 1
-# 2 "./include/asm/asm.h" 2
-# 1 "./include/asm/regdef.h" 1
-# 3 "./include/asm/asm.h" 2
+# 1 "<built-in>"
+# 1 "<command-line>"
+# 1 "src/exception/entry.S"
+# 1 "./include4asm/asm/asm.h" 1
+# 1 "./include4asm/asm/cp0regdef.h" 1
+# 2 "./include4asm/asm/asm.h" 2
+# 1 "./include4asm/asm/regdef.h" 1
+# 3 "./include4asm/asm/asm.h" 2
 # 2 "src/exception/entry.S" 2
-# 1 "./include/save_all.h" 1
-# 1 "./include/asm/asm.h" 1
-# 2 "./include/save_all.h" 2
-# 1 "./include/mmu.h" 1
-# 3 "./include/save_all.h" 2
-# 1 "./include/trap.h" 1
-# 4 "./include/save_all.h" 2
+# 1 "./include4asm/save_all.h" 1
+# 1 "./include4asm/asm/asm.h" 1
+# 2 "./include4asm/save_all.h" 2
+# 1 "./include4asm/mmu.h" 1
+# 3 "./include4asm/save_all.h" 2
+# 1 "./include4asm/trap.h" 1
+# 4 "./include4asm/save_all.h" 2
+
 
 .macro SAVE_ALL
 .set noat

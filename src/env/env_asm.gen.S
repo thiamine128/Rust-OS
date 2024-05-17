@@ -1,25 +1,23 @@
-# 0 "src/env/env_asm.S"
-# 0 "<built-in>"
-# 0 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
-# 0 "<command-line>" 2
 # 1 "src/env/env_asm.S"
-# 1 "./include/asm/asm.h" 1
-# 1 "./include/asm/cp0regdef.h" 1
-# 2 "./include/asm/asm.h" 2
-# 1 "./include/asm/regdef.h" 1
-# 3 "./include/asm/asm.h" 2
+# 1 "<built-in>"
+# 1 "<command-line>"
+# 1 "src/env/env_asm.S"
+# 1 "./include4asm/asm/asm.h" 1
+# 1 "./include4asm/asm/cp0regdef.h" 1
+# 2 "./include4asm/asm/asm.h" 2
+# 1 "./include4asm/asm/regdef.h" 1
+# 3 "./include4asm/asm/asm.h" 2
 # 2 "src/env/env_asm.S" 2
-# 1 "./include/mmu.h" 1
+# 1 "./include4asm/mmu.h" 1
 # 3 "src/env/env_asm.S" 2
-# 1 "./include/trap.h" 1
+# 1 "./include4asm/trap.h" 1
 # 4 "src/env/env_asm.S" 2
-# 1 "./include/kclock.h" 1
+# 1 "./include4asm/kclock.h" 1
 
 
 
-# 1 "./include/asm/asm.h" 1
-# 5 "./include/kclock.h" 2
+# 1 "./include4asm/asm/asm.h" 1
+# 5 "./include4asm/kclock.h" 2
 
 
 

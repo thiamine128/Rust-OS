@@ -3,12 +3,9 @@ INCLUDES    := -I../../include
 
 .PRECIOUS: %.b %.b.c
 
-%.x: %.b.c
-	$(CC) $(CFLAGS) -c -o $@ $<
 
-%.b.c: %.b
-	$(tools_dir)/bintoc -f $< -o $@ -p user_bare
-	cat $@
+%.b.rs: %.b
+	$(tools_dir)/bintorust -f $< -o $@ -p user_bare
 %.b: %.o
 	$(LD) -o $@ $(LDFLAGS) -T ../user.lds $^
 
@@ -20,7 +17,11 @@ INCLUDES    := -I../../include
 
 .PHONY: all clean
 
-all: loop.x overflow.x put_a.x put_b.x
+all: loop.b.rs overflow.b.rs put_a.b.rs put_b.b.rs
+	cat loop.b.rs >> ../../src/env/bare.rs
+	cat overflow.b.rs >> ../../src/env/bare.rs
+	cat put_a.b.rs >> ../../src/env/bare.rs
+	cat put_b.b.rs >> ../../src/env/bare.rs
 
 clean:
-	rm -rf *.o *~ *.x *.b *.b.c
+	rm -rf *.o *~ *.b *.b.rs

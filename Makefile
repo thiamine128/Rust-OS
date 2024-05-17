@@ -12,18 +12,20 @@ QEMU_FLAGS += -cpu 24Kc -m 64 -nographic -M malta \
 	-no-reboot
 
 
-.PHONEY: all run ASM
+.PHONEY: all run ASM kern users fs-image
 
-all: ASM
+all: kern
+
+kern: ASM users
 	cargo build --release
 	cp target/mipsel-unknown-none/release/mos_rust $(mos_elf)
 
 ASM:
-	gcc -E src/init/start.S -o src/init/start.gen.S -I./include
-	gcc -E src/memory/tlb_asm.S -o src/memory/tlb_asm.gen.S -I./include
-	gcc -E src/exception/entry.S -o src/exception/entry.gen.S -I./include
-	gcc -E src/exception/genex.S -o src/exception/genex.gen.S -I./include
-	gcc -E src/env/env_asm.S -o src/env/env_asm.gen.S -I./include
+	$(CC) $(CFLAGS) -E src/init/start.S -o src/init/start.gen.S -I./include4asm
+	$(CC) $(CFLAGS) -E src/memory/tlb_asm.S -o src/memory/tlb_asm.gen.S -I./include4asm
+	$(CC) $(CFLAGS) -E src/exception/entry.S -o src/exception/entry.gen.S -I./include4asm
+	$(CC) $(CFLAGS) -E src/exception/genex.S -o src/exception/genex.gen.S -I./include4asm
+	$(CC) $(CFLAGS) -E src/env/env_asm.S -o src/env/env_asm.gen.S -I./include4asm
 
 clean:
 	rm -rf target
@@ -42,4 +44,12 @@ doc:
 	cargo doc --bin mos_rust
 
 users:
-	$(MAKE) -C user/bare
+	echo '' > src/env/bare.rs
+	$(MAKE) -C lib
+	$(MAKE) -C fs
+	$(MAKE) -C user
+
+fs-files := user/test/fs_strong_check/rootfs/*
+
+fs-image:
+	$(MAKE) -C fs image fs-files="$(addprefix ../, $(fs-files))"

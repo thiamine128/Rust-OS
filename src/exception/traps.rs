@@ -1,4 +1,4 @@
-use crate::println;
+use crate::{print, println};
 
 extern "C" {
     fn handle_int();
@@ -33,8 +33,8 @@ static exception_handlers: [unsafe extern "C" fn(); 32] = {
     template[0] = handle_int;
     template[2] = handle_tlb;
     template[3] = handle_tlb;
-    //template[1] = handle_mod;
-    //template[8] = handle_sys;
+    template[1] = handle_mod;
+    template[8] = handle_sys;
     template
 };
 
@@ -66,15 +66,5 @@ impl Trapframe {
 
 #[no_mangle]
 pub extern "C" fn do_reserved() {
-    println!("do reserved");
-}
-
-#[no_mangle]
-pub extern "C" fn do_tlb_mod() {
-    println!("do tlbmod");
-}
-
-#[no_mangle]
-pub extern "C" fn do_syscall() {
-    println!("do syscall");
+    panic!("do reserved");
 }

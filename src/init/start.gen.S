@@ -1,14 +1,12 @@
-# 0 "src/init/start.S"
-# 0 "<built-in>"
-# 0 "<command-line>"
-# 1 "/usr/include/stdc-predef.h" 1 3 4
-# 0 "<command-line>" 2
 # 1 "src/init/start.S"
-# 1 "./include/asm/asm.h" 1
-# 1 "./include/asm/cp0regdef.h" 1
-# 2 "./include/asm/asm.h" 2
-# 1 "./include/asm/regdef.h" 1
-# 3 "./include/asm/asm.h" 2
+# 1 "<built-in>"
+# 1 "<command-line>"
+# 1 "src/init/start.S"
+# 1 "./include4asm/asm/asm.h" 1
+# 1 "./include4asm/asm/cp0regdef.h" 1
+# 2 "./include4asm/asm/asm.h" 2
+# 1 "./include4asm/asm/regdef.h" 1
+# 3 "./include4asm/asm/asm.h" 2
 # 2 "src/init/start.S" 2
 
 .section .text.entry

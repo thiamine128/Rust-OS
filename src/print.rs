@@ -7,17 +7,25 @@ use crate::device::malta;
 static STDOUT: Mutex<Stdout> = Mutex::new(Stdout{});
 
 const STATE_ADDR: *const u8 = (KSEG1 + malta::MALTA_SERIAL_LSR) as *const u8;
-const PUT_ADDR: *mut u8 = (KSEG1 + malta::MALTA_SERIAL_DATA) as *mut u8;
+const DATA_ADDR: *mut u8 = (KSEG1 + malta::MALTA_SERIAL_DATA) as *mut u8;
 
-fn printcharc(byte: u8) {
+pub fn printcharc(byte: u8) {
     if byte == b'\n' {
         printcharc(b'\r');
     }
     
     while unsafe { read_volatile(STATE_ADDR) } & malta::MALTA_SERIAL_THR_EMPTY == 0 {}
-    unsafe {write_volatile(PUT_ADDR, byte)};
+    unsafe {write_volatile(DATA_ADDR, byte)};
 }
 
+pub fn scancharc() -> u8 {
+    if unsafe {
+        read_volatile(STATE_ADDR) & malta::MALTA_SERIAL_DATA_READY
+    } != 0 {
+        return unsafe { read_volatile(DATA_ADDR) };
+    }
+    return 0;
+}
 // Stdout to serial device.
 pub struct Stdout;
 

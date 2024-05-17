@@ -1,26 +1,27 @@
 pub mod bare;
 pub mod schedule;
+pub mod syscall;
 
-use core::{mem::size_of, ptr::{addr_of, addr_of_mut}};
+use core::{fmt::{self, LowerHex}, mem::size_of, ptr::{addr_of, addr_of_mut}};
 
 use alloc::vec::Vec;
 use spin::Mutex;
 
-use crate::{env::test::pre_env_run, err::Error, exception::traps::{Trapframe, STATUS_EXL, STATUS_IE, STATUS_IM7, STATUS_UM}, memory::{frame::{frame_alloc, frame_base_phy_addr, frame_base_size, frame_decref, frame_incref}, mmu::{PhysAddr, PhysPageNum, VirtAddr, KSTACKTOP, NASID, PDSHIFT, PGSHIFT, PTE_G, PTE_V, UENVS, UPAGES, USTACKTOP, UTOP, UVPT}, page_table::{PageTable, Pte, PAGE_TABLE_ENTRIES}, tlb::tlb_invalidate}, println, util::{elf::{elf_from, elf_load_seg, Elf32Phdr, PT_LOAD}, queue::IndexLink}};
+use crate::{err::Error, exception::traps::{Trapframe, STATUS_EXL, STATUS_IE, STATUS_IM7, STATUS_UM}, memory::{frame::{frame_alloc, frame_base_phy_addr, frame_base_size, frame_decref, frame_incref}, mmu::{PhysAddr, PhysPageNum, VirtAddr, KSTACKTOP, NASID, PDSHIFT, PGSHIFT, PTE_G, PTE_V, UENVS, UPAGES, USTACKTOP, UTOP, UVPT}, page_table::{PageTable, Pte, PAGE_TABLE_ENTRIES}, tlb::tlb_invalidate}, print, println, sync::cell::UPSafeCell, util::{elf::{elf_from, elf_load_seg, Elf32Phdr, PT_LOAD}, queue::IndexLink}};
 
 const LOG2NENV: usize = 10;
 const NENV: usize = 1 << LOG2NENV;
 
 
-static ENV_MANAGER: Mutex<EnvManager<'static>> = Mutex::new(EnvManager::new());
+static ENV_MANAGER: UPSafeCell<EnvManager<'static>> = UPSafeCell::new(EnvManager::new());
 
 extern "C" {
-    fn env_pop_tf(addr: usize, asid: usize);
+    fn env_pop_tf(addr: usize, asid: usize) -> !;
 }
 
 #[inline]
 pub fn env_init() {
-    ENV_MANAGER.lock().init();
+    ENV_MANAGER.borrow_mut().init();
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -31,6 +32,7 @@ pub struct ASID(usize);
 #[repr(C)]
 pub struct EnvID(usize);
 
+#[repr(usize)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EnvStatus {
     Free = 0,
@@ -38,11 +40,12 @@ pub enum EnvStatus {
     NotRunnable = 2
 }
 
+#[repr(C)]
 pub struct Env<'a> {
     env_tf: Trapframe,
     env_id: EnvID,
     env_asid: ASID,
-    env_parent_id: EnvID,
+    pub env_parent_id: EnvID,
     env_status: EnvStatus,
     env_pgdir: Option<&'a mut PageTable>,
     env_pri: usize,
@@ -96,6 +99,12 @@ impl EnvID {
     #[inline]
     pub fn envx(self) -> usize {
         self.0 & (NENV - 1)
+    }
+}
+
+impl LowerHex for EnvID {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt::LowerHex::fmt(&(self.0), f)
     }
 }
 
@@ -225,17 +234,14 @@ impl<'a> EnvManager<'a> {
         Ok(envid)
     }
     #[inline]
-    pub fn envid2env(&mut self, id: EnvID, checkperm: i32) -> Result<&mut Env<'a>, Error> {
-        if self.cur_env_ind.is_none() {
-            panic!("No env is running.");
-        } else {
-            if id.0 == 0 {
-                return Ok(&mut self.envs[self.cur_env_ind.unwrap()]);
-            }
+    pub fn envid2ind(&self, id: EnvID, checkperm: i32) -> Result<usize, Error> {
+        
+        if id.0 == 0 {
+            return Ok(self.cur_env_ind.unwrap());
         }
         
         let cur_env_id = self.envs[self.cur_env_ind.unwrap()].env_id;
-        let e = &mut self.envs[id.envx()];
+        let e = &self.envs[id.envx()];
         if e.env_status == EnvStatus::Free || e.env_id != id {
             return Err(Error::BadEnv)
         }
@@ -244,7 +250,7 @@ impl<'a> EnvManager<'a> {
                 return Err(Error::BadEnv);
             }
         }
-        Ok(e)
+        Ok(id.envx())
     }
     #[inline]
     pub fn get_env(&mut self, ind: usize) -> &mut Env<'a>{
@@ -298,63 +304,88 @@ impl<'a> EnvManager<'a> {
         self.env_sched_list.insert_head(ind);
         envid
     }
-    #[inline]
-    pub fn destroy(&mut self, ind: usize) {
-        self.free(ind);
-        let cur_env_ind = self.cur_env_ind.unwrap();
-        if ind == cur_env_ind {
-            self.cur_env_ind = None;
-            println!("I am killed ...");
-            self.sched(1);
-        }
-    }
+}
 
-    pub fn prepare_run(&mut self, ind: usize) -> (usize, usize) {
-        let p = pre_env_run(self, ind);
-        if p.is_some() {
-            return p.unwrap();
-        }
-        let env = self.get_env(ind);
-        assert!(env.env_status == EnvStatus::Runnable);
+#[inline]
+pub fn env_destroy(ind: usize) {
+    let mut em = ENV_MANAGER.borrow_mut();
+    em.free(ind);
+    let cur_env_ind = em.cur_env_ind.unwrap();
+    if ind == cur_env_ind {
+        em.cur_env_ind = None;
+        println!("I am killed ...");
+        drop(em);
+        env_sched(1);
+    }
+}
+
+pub fn pre_env_run(e: usize) {
+    let tfp;
+    let mut em = ENV_MANAGER.borrow_mut();
+    if Some(e) == em.cur_env_ind {
+        let addr = (KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe;
+        tfp = unsafe {addr.as_ref()}.unwrap();
+    } else {
+        tfp = &em.get_env(e).env_tf;
+    }
+    
+
+    let epc = tfp.cp0_epc;
+    let v0 = tfp.regs[2];
+    if tfp.cp0_epc == 0x400180 {
+        println!("env {:x} reached end pc: {:x}, $v0={:x}", em.get_env(e).env_id.as_usize(), epc, v0);
+        drop(em);
+        env_destroy(e);
+        env_sched(0);
+    }
+}
+
+pub fn env_run(ind: usize) -> ! {
+    //pre_env_run(ind);
+    let mut em = ENV_MANAGER.borrow_mut();
+    let env = em.get_env(ind);
+    assert!(env.env_status == EnvStatus::Runnable);
+    
+    let cur = em.cur_env_ind;
+    if let Some(cur_ind) = cur {
+        let kstacktop = (KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe;
+        em.get_env(cur_ind).env_tf = unsafe {
+            *kstacktop
+        };
         
-        let cur = self.cur_env_ind;
-        if let Some(cur_ind) = cur {
-            let kstacktop = (KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe;
-            self.get_env(cur_ind).env_tf = unsafe {
-                *kstacktop
-            };
-            
-        }
-
-        self.cur_env_ind = Some(ind);
-        let curenv = self.get_env(ind);
-        curenv.env_runs += 1;
-        
-        //println!("{:x} from {:x}", curenv.env_id.0, curenv.env_tf.cp0_epc);
-        let tf_addr = addr_of!(curenv.env_tf) as usize;
-        let asid = curenv.env_asid.as_usize();
-        (tf_addr, asid)
-
     }
-    pub fn sched(&mut self, y: i32) -> (usize, usize) {
-        self.count -= 1;
-        let e = self.cur_env_ind;
-        let next_run;
-        if y != 0 || self.count == 0 || e.is_none() || self.get_env(e.unwrap()).env_status != EnvStatus::Runnable {
-            if self.env_sched_list.is_empty() {
-                panic!("Sched list empty");
-            }
-            if e.is_some() && self.get_env(e.unwrap()).env_status == EnvStatus::Runnable {
-                self.env_sched_list.remove(e.unwrap());
-                self.env_sched_list.insert_tail(e.unwrap());
-            }
-            next_run = self.env_sched_list.first().unwrap();
-            self.count = self.get_env(next_run).env_pri as isize;
-        } else {
-            next_run = e.unwrap();
+
+    em.cur_env_ind = Some(ind);
+    let curenv = em.get_env(ind);
+    curenv.env_runs += 1;
+    
+    //println!("{:x} from {:x}", curenv.env_id.0, curenv.env_tf.cp0_epc);
+    let tf_addr = addr_of!(curenv.env_tf) as usize;
+    let asid = curenv.env_asid.as_usize();
+    drop(em);
+    unsafe {env_pop_tf(tf_addr, asid)}
+
+}
+pub fn env_sched(y: i32) -> ! {
+    let mut em = ENV_MANAGER.borrow_mut();
+    em.count -= 1;
+    let e = em.cur_env_ind;
+    let next_run;
+    if y != 0 || em.count == 0 || e.is_none() || em.get_env(e.unwrap()).env_status != EnvStatus::Runnable {
+        if em.env_sched_list.is_empty() {
+            panic!("Sched list empty");
         }
-        self.prepare_run(next_run)
+        if e.is_some() && em.get_env(e.unwrap()).env_status == EnvStatus::Runnable {
+            em.env_sched_list.remove(e.unwrap());
+            em.env_sched_list.insert_tail(e.unwrap());
+        }
+        next_run = em.env_sched_list.first().unwrap();
+        em.count = em.get_env(next_run).env_pri as isize;
+    } else {
+        next_run = e.unwrap();
     }
+    drop(em);
+    env_run(next_run);
 }
 
 fn load_icode_mapper(env: &mut Env, va: VirtAddr, offset: usize, perm: usize, src: Option<&[u8]>, len: usize) -> Result<(), Error> {
@@ -398,61 +429,77 @@ fn load_icode(env: &mut Env, binary: &[u8], size: usize) {
 }
 
 pub fn insert_sched(envid: EnvID) {
-    let sched_list = &mut ENV_MANAGER.lock().env_sched_list;
+    let sched_list = &mut ENV_MANAGER.borrow_mut().env_sched_list;
     sched_list.insert_tail(envid.envx());
 }
 pub fn env_alloc(parent_id: EnvID) -> Result<EnvID, Error> {
-    ENV_MANAGER.lock().alloc(parent_id)
+    ENV_MANAGER.borrow_mut().alloc(parent_id)
 }
 pub fn env_free(ind: usize) {
-    ENV_MANAGER.lock().free(ind);
+    ENV_MANAGER.borrow_mut().free(ind);
 }
 pub fn env_create(binary: &[u8], size: usize, priority: usize) -> EnvID {
-    ENV_MANAGER.lock().create(binary, size, priority)
-}
-pub fn env_run(ind: usize) {
-    
+    ENV_MANAGER.borrow_mut().create(binary, size, priority)
 }
 pub fn cur_pgdir<F>(mut f: F)
 where
     F : FnMut(&mut PageTable) {
-    let ind = ENV_MANAGER.lock().cur_env_ind.unwrap();
-    if let Some(pgdir) = &mut ENV_MANAGER.lock().get_env(ind).env_pgdir {
+    let ind = ENV_MANAGER.borrow_mut().cur_env_ind.unwrap();
+    if let Some(pgdir) = &mut ENV_MANAGER.borrow_mut().get_env(ind).env_pgdir {
         f(pgdir);
     }
+}
+pub fn env_pgdir<F>(ind: usize, mut f: F)
+where
+    F : FnMut(&mut PageTable) {
+    if let Some(pgdir) = &mut ENV_MANAGER.borrow_mut().get_env(ind).env_pgdir {
+        f(pgdir);
+    }
+}
+#[inline]
+pub fn curenv_id() -> EnvID{
+    let em = ENV_MANAGER.borrow_mut();
+    let ind = em.cur_env_ind.unwrap();
+    em.envs[ind].env_id
+}
+#[inline]
+pub fn envid2ind(envid: EnvID, checkperm: i32) -> Result<usize, Error> {
+    let em = ENV_MANAGER.borrow_mut();
+    em.envid2ind(envid, checkperm)
+}
+#[inline]
+pub fn env_set_tlb_mod_entry(ind: usize, func: usize) {
+    let mut em = ENV_MANAGER.borrow_mut();
+    em.envs[ind].env_user_tlb_mod_entry = func;
+}
+#[inline]
+pub fn env_asid(ind: usize) -> ASID {
+    let em = ENV_MANAGER.borrow_mut();
+    em.envs[ind].env_asid
+}
+#[inline]
+pub fn set_env_tf(ind: usize, tf: *const Trapframe) {
+    let mut em = ENV_MANAGER.borrow_mut();
+    em.envs[ind].env_tf = unsafe {*tf};
+}
+#[inline]
+pub fn env_accept<F>(ind: usize, mut f: F)
+where
+    F: FnMut(&mut Env) {
+    let mut em = ENV_MANAGER.borrow_mut();
+    f(&mut em.envs[ind]);
+}
+#[inline]
+pub fn user_tlb_mod_entry() -> usize {
+    let em = ENV_MANAGER.borrow_mut();
+    let ind = em.cur_env_ind.unwrap();
+    let ent = em.envs[ind].env_user_tlb_mod_entry;
+    drop(em);
+    return ent;
 }
 #[macro_export]
 macro_rules! env_create_pri {
     ($name: ident, $pri: expr) => {
         crate::env::env_create(&concat_idents!(binary_, $name, _start), concat_idents!(binary_, $name, _size), $pri)
     };
-}
-
-pub mod test {
-    use core::mem::size_of;
-
-    use crate::{exception::traps::Trapframe, memory::mmu::KSTACKTOP, println};
-
-    use super::EnvManager;
-    
-    pub fn pre_env_run(em: &mut EnvManager, e: usize) -> Option<(usize, usize)>{
-        let tfp;
-        if Some(e) == em.cur_env_ind {
-            let addr = (KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe;
-            tfp = unsafe {addr.as_ref()}.unwrap();
-        } else {
-            tfp = &em.get_env(e).env_tf;
-        }
-        
-
-        let epc = tfp.cp0_epc;
-        let v0 = tfp.regs[2];
-        if tfp.cp0_epc == 0x400180 {
-            println!("env {:x} reached end pc: {:x}, $v0={:x}", em.get_env(e).env_id.as_usize(), epc, v0);
-            em.destroy(e);
-            Some(em.sched(0))
-        } else {
-            None
-        }
-    }
 }

@@ -4,6 +4,7 @@
 #![feature(step_trait)]
 #![feature(concat_idents)]
 #![feature(sync_unsafe_cell)]
+#![feature(lazy_cell)]
 #![allow(dead_code)]
 #![no_std]
 #![no_main]

@@ -1,4 +1,5 @@
 #[derive(Debug)]
+#[repr(i32)]
 pub enum Error {
     Unspecified = 1,
     BadEnv = 2,
