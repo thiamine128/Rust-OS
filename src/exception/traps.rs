@@ -1,3 +1,7 @@
+use core::mem::size_of;
+
+use crate::{env::user_tlb_mod_entry, memory::mmu::{VirtAddr, USTACKTOP, UXSTACKTOP}};
+
 extern "C" {
     fn handle_int();
     fn handle_tlb();
@@ -58,6 +62,29 @@ impl Trapframe {
             cp0_cause: 0,
             cp0_badvaddr: 0,
             cp0_epc: 0
+        }
+    }
+
+    #[inline]
+    pub fn do_tlb_mod(&mut self) {
+        let tmp_tf = self.clone();
+        let sp = VirtAddr::new(self.regs[29]);
+        if sp < USTACKTOP || sp >= UXSTACKTOP {
+            self.regs[29] = UXSTACKTOP.as_usize();
+        }
+        
+        self.regs[29] -= size_of::<Trapframe>();
+        let sp: *mut Trapframe = VirtAddr::new(self.regs[29]).as_mut_ptr();
+        let t = unsafe {sp.as_mut()}.unwrap();
+        *t = tmp_tf;
+
+        let mod_entry = user_tlb_mod_entry();
+        if mod_entry != 0 {
+            self.regs[4] = self.regs[29];
+            self.regs[29] -= 4;
+            self.cp0_epc = mod_entry;
+        } else {
+            panic!("TLB Mod but no user handler registered");
         }
     }
 }

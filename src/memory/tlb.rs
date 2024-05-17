@@ -16,73 +16,15 @@ pub fn tlb_invalidate(asid: ASID, va: VirtAddr) {
     }
 }
 
-fn passive_alloc(va: VirtAddr, pgdir: &mut PageTable, asid: ASID) {
-    if va < UTEMP {
-		panic!("address too low");
-	}
-
-	if va >= USTACKTOP && va < USTACKTOP + PAGE_SIZE {
-		panic!("invalid memory");
-	}
-
-	if va >= UENVS && va < UPAGES {
-		panic!("envs zone");
-	}
-
-	if va >= UPAGES && va  < UVPT {
-		panic!("pages zone");
-	}
-
-	if va.as_usize() >= ULIM {
-		panic!("kernel address");
-	}
-    let ppn = frame_alloc().unwrap();
-    frame_incref(ppn);
-    pgdir.insert(asid, ppn, va.page_align_down(), 
-        if va >= UVPT && va.as_usize() < ULIM {
-            0
-        } else {
-            PTE_D
-        }).unwrap();
-}
-
 
 #[no_mangle]
 pub extern "C" fn _do_tlb_refill(entries: &mut [usize; 2], va: VirtAddr, asid: ASID) {
     cur_pgdir(|pgdir| {
-        tlb_invalidate(asid, va);
-
-        let pte = loop {
-            if let Ok((_, pte)) = pgdir.lookup(va) {
-                break pte;
-            }
-            passive_alloc(va, pgdir, asid);
-        };
-
-        pte.fill_tlb_entry(entries);
+        pgdir.do_tlb_refill(entries, va, asid);
     })
 }
 
 #[no_mangle]
 pub extern "C" fn do_tlb_mod(tf: &mut Trapframe) {
-    let tmp_tf = tf.clone();
-    let sp = VirtAddr::new(tf.regs[29]);
-    if sp < USTACKTOP || sp >= UXSTACKTOP {
-        tf.regs[29] = UXSTACKTOP.as_usize();
-    }
-    
-    tf.regs[29] -= size_of::<Trapframe>();
-    let sp: *mut Trapframe = VirtAddr::new(tf.regs[29]).as_mut_ptr();
-    let t = unsafe {sp.as_mut()}.unwrap();
-    *t = tmp_tf;
-
-    let mod_entry = user_tlb_mod_entry();
-    if mod_entry != 0 {
-        tf.regs[4] = tf.regs[29];
-        tf.regs[29] -= 4;
-        tf.cp0_epc = mod_entry;
-    } else {
-        panic!("TLB Mod but no user handler registered");
-    }
-    
+    tf.do_tlb_mod();
 }

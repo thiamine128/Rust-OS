@@ -368,26 +368,34 @@ fn get_syscall(id: SyscallID) -> usize {
 	}
 }
 
+pub struct Syscall;
+
+impl Syscall {
+	pub fn do_syscall(&self, tf: &mut Trapframe) {
+		let sysno = tf.regs[4];
+		if sysno >= SyscallID::SysNo as usize {
+			tf.regs[2] = -(Error::NoSys as i32) as usize;
+			return;
+		}
+		tf.cp0_epc += 4;
+		let func_ptr = get_syscall(SyscallID::from(sysno)) as *const ();
+		let arg1 = tf.regs[5];
+		let arg2 = tf.regs[6];
+		let arg3 = tf.regs[7];
+		let sp = tf.regs[29] as *mut usize;
+		let sp = unsafe{ slice::from_raw_parts(sp, 6)};
+		let arg4 = sp[4];
+		let arg5 = sp[5];
+		let func: fn(usize, usize, usize, usize, usize) -> i32 = unsafe {
+			mem::transmute::<>(func_ptr)
+		};
+	
+		let ret = func(arg1, arg2, arg3, arg4, arg5);
+		tf.regs[2] = ret as usize;
+	}
+}
+
 #[no_mangle]
 pub extern "C" fn do_syscall(tf: &mut Trapframe) {
-	let sysno = tf.regs[4];
-	if sysno >= SyscallID::SysNo as usize {
-		tf.regs[2] = -(Error::NoSys as i32) as usize;
-		return;
-	}
-	tf.cp0_epc += 4;
-	let func_ptr = get_syscall(SyscallID::from(sysno)) as *const ();
-	let arg1 = tf.regs[5];
-	let arg2 = tf.regs[6];
-	let arg3 = tf.regs[7];
-	let sp = tf.regs[29] as *mut usize;
-	let sp = unsafe{ slice::from_raw_parts(sp, 6)};
-	let arg4 = sp[4];
-	let arg5 = sp[5];
-	let func: fn(usize, usize, usize, usize, usize) -> i32 = unsafe {
-		mem::transmute::<>(func_ptr)
-	};
-
-	let ret = func(arg1, arg2, arg3, arg4, arg5);
-	tf.regs[2] = ret as usize;
+	Syscall.do_syscall(tf);
 }

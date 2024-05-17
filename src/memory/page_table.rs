@@ -177,4 +177,48 @@ impl PageTable {
             paddr.as_mut().unwrap()
         }
     }
+
+    fn passive_alloc(&mut self, va: VirtAddr, asid: ASID) {
+        if va < UTEMP {
+            panic!("address too low");
+        }
+    
+        if va >= USTACKTOP && va < USTACKTOP + PAGE_SIZE {
+            panic!("invalid memory");
+        }
+    
+        if va >= UENVS && va < UPAGES {
+            panic!("envs zone");
+        }
+    
+        if va >= UPAGES && va  < UVPT {
+            panic!("pages zone");
+        }
+    
+        if va.as_usize() >= ULIM {
+            panic!("kernel address");
+        }
+        let ppn = frame_alloc().unwrap();
+        frame_incref(ppn);
+        self.insert(asid, ppn, va.page_align_down(), 
+            if va >= UVPT && va.as_usize() < ULIM {
+                0
+            } else {
+                PTE_D
+            }).unwrap();
+    }
+
+    #[inline]
+    pub fn do_tlb_refill(&mut self, entries: &mut [usize; 2], va: VirtAddr, asid: ASID) {
+        tlb_invalidate(asid, va);
+
+        let pte = loop {
+            if let Ok((_, pte)) = self.lookup(va) {
+                break pte;
+            }
+            self.passive_alloc(va, asid);
+        };
+
+        pte.fill_tlb_entry(entries);
+    }
 }
