@@ -1,4 +1,4 @@
-use core::{alloc::{GlobalAlloc, Layout}, borrow::{Borrow, BorrowMut}, cmp::{max, min}, mem::*, ptr::NonNull};
+use core::{alloc::{GlobalAlloc, Layout}, borrow::BorrowMut, cmp::{max, min}, mem::*, ptr::NonNull};
 
 use crate::{sync::cell::UPSafeCell, util::linked_list};
 

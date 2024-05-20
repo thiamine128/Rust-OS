@@ -1,8 +1,7 @@
-use core::mem::size_of;
 
-use crate::{env::{cur_pgdir, user_tlb_mod_entry, ASID}, exception::traps::Trapframe, util::bitops::genmask};
+use crate::{env::{cur_pgdir, ASID}, exception::traps::Trapframe, util::bitops::genmask};
 
-use super::{frame::{frame_alloc, frame_incref}, mmu::{VirtAddr, NASID, PAGE_SIZE, PGSHIFT, PTE_D, UENVS, ULIM, UPAGES, USTACKTOP, UTEMP, UVPT, UXSTACKTOP}, page_table::PageTable};
+use super::mmu::{VirtAddr, NASID, PGSHIFT};
 
 extern "C" {
     fn tlb_out(entry: usize);

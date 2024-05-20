@@ -27,7 +27,6 @@ pub mod device;
 pub mod exception;
 pub mod err;
 pub mod util;
-pub mod test;
 pub mod env;
 pub mod sync;
 
