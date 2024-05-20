@@ -1,4 +1,4 @@
-use core::{alloc::Layout, mem::size_of};
+use core::{alloc::Layout, mem::size_of, ptr::write_bytes};
 
 use alloc::vec::Vec;
 
@@ -25,11 +25,8 @@ pub fn frame_base_size() -> usize { FRAME_ALLOCATOR.borrow_mut().base_size }
 
 #[inline]
 fn frame_clear(ppn: PhysPageNum) {
-    let mut st = ppn.into_kva().as_usize();
-    for _ in 0..PAGE_SIZE / 4 {
-        unsafe {*(st as *mut u32) = 0};
-        st += 4;
-    }
+    let dst = ppn.into_kva().as_mut_ptr::<u8>();
+    unsafe { write_bytes(dst, 0, PAGE_SIZE); }
 }
 
 #[derive(Clone)]

@@ -2,7 +2,7 @@ pub mod bare;
 pub mod schedule;
 pub mod syscall;
 
-use core::{fmt::{self, LowerHex}, mem::size_of, ptr::{addr_of, addr_of_mut}};
+use core::{fmt::{self, LowerHex}, mem::size_of, ptr::{addr_of, addr_of_mut, copy}};
 
 use alloc::vec::Vec;
 
@@ -133,6 +133,16 @@ impl Default for EnvID {
 impl LowerHex for EnvID {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         fmt::LowerHex::fmt(&(self.0), f)
+    }
+}
+
+impl From<usize> for EnvStatus {
+    fn from(value: usize) -> Self {
+        match value {
+			x if x == EnvStatus::Free as usize => EnvStatus::Free,
+            x if x == EnvStatus::Runnable as usize => EnvStatus::Runnable,
+            _ => EnvStatus::NotRunnable
+        }
     }
 }
 
@@ -303,9 +313,7 @@ impl<'a> EnvManager<'a> {
                 }
                 let pte = pgdir.get_entry(pdeno);
                 let addr = pte.addr().into_kva().as_mut_ptr::<PageTable>();
-                let pgtable: &mut PageTable = unsafe {
-                    addr.as_mut()
-                }.unwrap();
+                let pgtable: &mut PageTable = unsafe { addr.as_mut() }.unwrap();
                 for pteno in 0..PAGE_TABLE_ENTRIES {
                     if pgtable.get_entry(pteno).valid() {
                         pgdir.remove(env.env_asid, VirtAddr::new((pdeno << PDSHIFT) | (pteno << PGSHIFT)));
@@ -351,25 +359,8 @@ pub fn env_destroy(ind: usize) {
     }
 }
 
-pub fn pre_env_run(e: usize) {
-    let tfp;
-    let mut em = ENV_MANAGER.borrow_mut();
-    if Some(e) == em.cur_env_ind {
-        let addr = (KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe;
-        tfp = unsafe {addr.as_ref()}.unwrap();
-    } else {
-        tfp = &em.get_env(e).env_tf;
-    }
-    
+pub fn pre_env_run(_: usize) {
 
-    let epc = tfp.cp0_epc;
-    let v0 = tfp.regs[2];
-    if tfp.cp0_epc == 0x400180 {
-        println!("env {:x} reached end pc: {:x}, $v0={:x}", em.get_env(e).env_id.as_usize(), epc, v0);
-        drop(em);
-        env_destroy(e);
-        env_sched(0);
-    }
 }
 
 pub fn env_run(ind: usize) -> ! {
@@ -381,9 +372,7 @@ pub fn env_run(ind: usize) -> ! {
     let cur = em.cur_env_ind;
     if let Some(cur_ind) = cur {
         let kstacktop = (KSTACKTOP - size_of::<Trapframe>()) as *mut Trapframe;
-        em.get_env(cur_ind).env_tf = unsafe {
-            *kstacktop
-        };
+        em.get_env(cur_ind).load_tf(kstacktop);
         
     }
 
@@ -422,17 +411,11 @@ pub fn env_sched(y: i32) -> ! {
 
 fn load_icode_mapper(env: &mut Env, va: VirtAddr, offset: usize, perm: usize, src: Option<&[u8]>, len: usize) -> Result<(), Error> {
     let ppn = frame_alloc()?;
-    let mut hash = 0;
     if src.is_some() {
-        let st = ppn.into_kva() + offset;
-        for i in 0..len {
-            let write_addr = (st + i).as_mut_ptr::<u8>();
-            let read = src.unwrap()[i];
-            unsafe {*write_addr = read};
-            hash = hash + read as i32;
-        }
+        let dst = (ppn.into_kva() + offset).as_mut_ptr::<u8>();
+        let src_addr = src.unwrap().as_ptr();
+        unsafe { copy(src_addr, dst, len); }
     }
-    //println!("map {:p} to {:x} with {}", va, ppn.as_usize() << PGSHIFT, hash);
     let asid = env.env_asid;
     if let Some(pgdir) = &mut env.env_pgdir {
         pgdir.insert(asid, ppn, va, perm)?;
@@ -448,9 +431,7 @@ fn load_icode(env: &mut Env, binary: &[u8], size: usize) {
     let ehdr = ehdr.unwrap();
     for phdr_off in ehdr.phdr_iter() {
         let phdr_addr = (binary.as_ptr() as usize + phdr_off) as *const Elf32Phdr;
-        let phdr = unsafe {
-            phdr_addr.as_ref()
-        }.unwrap();
+        let phdr = unsafe { phdr_addr.as_ref() }.unwrap();
         if phdr.p_type == PT_LOAD {
             elf_load_seg(phdr, &binary[phdr.p_offset as usize..], |va, offset, perm, bin, size| {
                 load_icode_mapper(env, va, offset, perm, bin, size)

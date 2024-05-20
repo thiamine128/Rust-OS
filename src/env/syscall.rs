@@ -1,4 +1,4 @@
-use core::{borrow::BorrowMut, ffi::CStr, mem::{self, size_of}, ptr::write_volatile, slice, usize};
+use core::{borrow::BorrowMut, ffi::CStr, mem::{self, size_of}, ptr::{copy, write_volatile}, slice, usize};
 
 
 use crate::{env::{env_destroy, env_sched, envid2ind, get_cur_env_id, EnvID}, err::Error, exception::traps::Trapframe, memory::{frame::frame_alloc, mmu::{PhysAddr, VirtAddr, KSEG1, KSTACKTOP, PTE_V, UTEMP, UTOP}}, print::{printcharc, scancharc}, println, try_or_return};
@@ -294,17 +294,17 @@ fn sys_write_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 		1 => {
 			let va = va.as_ptr::<u8>();
 			let kva = kva.as_mut_ptr::<u8>();
-			 unsafe { *kva = *va }
+			 unsafe { copy(va, kva, 1) }
 		},
 		2 => {
 			let va = va.as_ptr::<u16>();
 			let kva = kva.as_mut_ptr::<u16>();
-			 unsafe { *kva = *va }
+			 unsafe { copy(va, kva, 1) }
 		},
 		4 => {
 			let va = va.as_ptr::<u32>();
 			let kva = kva.as_mut_ptr::<u32>();
-			 unsafe { *kva = *va }
+			 unsafe { copy(va, kva, 1) }
 		},
 		_ => {}
 	};
@@ -326,17 +326,17 @@ fn sys_read_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 		1 => {
 			let va = va.as_mut_ptr::<u8>();
 			let kva = kva.as_ptr::<u8>();
-			 unsafe { *va = *kva }
+			unsafe { copy(kva, va, 1) }
 		},
 		2 => {
 			let va = va.as_mut_ptr::<u16>();
 			let kva = kva.as_ptr::<u16>();
-			 unsafe { *va = *kva }
+			unsafe { copy(kva, va, 1) }
 		},
 		4 => {
 			let va = va.as_mut_ptr::<u32>();
 			let kva = kva.as_ptr::<u32>();
-			 unsafe { *va = *kva }
+			unsafe { copy(kva, va, 1) }
 		},
 		_ => {}
 	};

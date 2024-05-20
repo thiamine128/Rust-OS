@@ -11,9 +11,7 @@ extern "C" {
 #[inline]
 pub fn tlb_invalidate(asid: ASID, va: VirtAddr) {
     let entry = (va.as_usize() & !genmask(PGSHIFT, 0)) | (asid.as_usize() & (NASID - 1));
-    unsafe {
-        tlb_out(entry);
-    }
+    unsafe { tlb_out(entry); }
 }
 
 

@@ -293,11 +293,3 @@ impl PhysPageNum {
         PhysAddr::from(self).into_kva()
     }
 }
-
-/*
-#[inline]
-pub fn va2pa(pgdir: *mut usize, va: usize) -> usize{
-    unsafe {
-    
-    }
-}*/

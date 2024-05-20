@@ -12,8 +12,6 @@
 use core::arch::global_asm;
 
 extern crate alloc;
-extern crate buddy_system_allocator;
-extern crate spin;
 
 /// kernel print.
 pub mod print;

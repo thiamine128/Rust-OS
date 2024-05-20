@@ -1,10 +1,8 @@
 use core::{fmt::{self, Write}, ptr::{read_volatile, write_volatile}};
-use spin::Mutex;
 
 use crate::memory::mmu::KSEG1;
 use crate::device::malta;
 
-static STDOUT: Mutex<Stdout> = Mutex::new(Stdout{});
 
 const STATE_ADDR: *const u8 = (KSEG1 + malta::MALTA_SERIAL_LSR) as *const u8;
 const DATA_ADDR: *mut u8 = (KSEG1 + malta::MALTA_SERIAL_DATA) as *mut u8;
@@ -40,7 +38,7 @@ impl Write for Stdout {
 
 /// kernel print implementation.
 pub fn _print(args: fmt::Arguments) {
-    STDOUT.lock().write_fmt(args).unwrap();
+    Stdout.write_fmt(args).unwrap();
 }
 
 /// print to serial device.

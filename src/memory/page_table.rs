@@ -52,10 +52,12 @@ impl Pte {
 
     #[inline]
     pub fn fill_tlb_entry(&mut self, pentrylo: &mut [usize; 2]) {
-        let mut ppte: *mut usize = addr_of_mut!(*self) as *mut usize;
-        ppte = ((ppte as usize) & !0x7) as *mut usize;
-        pentrylo[0] = (unsafe { *ppte } as usize) >> 6;
-        pentrylo[1] = (unsafe { *ppte.offset(1) } as usize) >> 6;
+        let ppte: usize = addr_of_mut!(*self) as usize;
+        let ppte = ppte & !0x7;
+        let ptr0 = ppte as *mut usize;
+        let ptr1 = (ppte + 4) as *mut usize;
+        pentrylo[0] = (unsafe { *ptr0 } as usize) >> 6;
+        pentrylo[1] = (unsafe { *ptr1 } as usize) >> 6;
     }
     #[inline]
     pub const fn addr(self) -> PhysAddr {
@@ -84,7 +86,7 @@ impl PageTable {
             }
         }
         let pt_addr = ppn.into_kva().as_mut_ptr();
-        let page_table: &mut PageTable = unsafe {&mut *pt_addr};
+        let page_table: &mut PageTable = unsafe { &mut *pt_addr };
         Ok(&mut page_table.entries[va.ptx()])
     }
     #[inline]
@@ -168,14 +170,6 @@ impl PageTable {
     #[inline]
     pub fn get_entry(&self, ptx: usize) -> Pte {
         self.entries[ptx]
-    }
-
-    #[inline]
-    pub fn enter(&mut self, pdx: usize) -> &mut Self {
-        let paddr: *mut PageTable = self.entries[pdx].addr().into_kva().as_mut_ptr();
-        unsafe {
-            paddr.as_mut().unwrap()
-        }
     }
 
     fn passive_alloc(&mut self, va: VirtAddr, asid: ASID) {
