@@ -74,3 +74,35 @@ int syscall_read_dev(void *va, u_int dev, u_int len) {
 	/* Exercise 5.2: Your code here. (2/2) */
 	return msyscall(SYS_read_dev, va, dev, len);
 }
+
+int syscall_shmget(int key, int size) {
+	return msyscall(SYS_shmget, key, size);
+}
+
+int syscall_shmat(int id, void* addr, u_int perm) {
+	return msyscall(SYS_shmat, id, addr, perm);
+}
+
+int syscall_shmdt(int id, void* addr) {
+	return msyscall(SYS_shmdt, id, addr);
+}
+
+int syscall_shmctl(int id, u_int ctl) {
+	return msyscall(SYS_shmctl, id, ctl);
+}
+
+void syscall_semopen(int id, int v) {
+	return msyscall(SYS_semopen, id, v);
+}
+
+int syscall_semwait(int id) {
+	return msyscall(SYS_semwait, id);
+}
+
+void syscall_sempost(int id) {
+	return msyscall(SYS_sempost, id);
+}
+
+void syscall_semkill(int id) {
+	return msyscall(SYS_semkill, id);
+}

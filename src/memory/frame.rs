@@ -22,6 +22,8 @@ pub fn frame_decref(ppn: PhysPageNum) { FRAME_ALLOCATOR.borrow_mut().decref(ppn)
 pub fn frame_base_phy_addr() -> PhysAddr { FRAME_ALLOCATOR.borrow_mut().base_phy_addr() }
 #[inline]
 pub fn frame_base_size() -> usize { FRAME_ALLOCATOR.borrow_mut().base_size }
+#[inline]
+pub fn num_free_frames() -> usize { FRAME_ALLOCATOR.borrow_mut().frames_free_list.len() }
 
 #[inline]
 fn frame_clear(ppn: PhysPageNum) {

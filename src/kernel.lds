@@ -3,11 +3,12 @@ OUTPUT_ARCH(mips)
 ENTRY(_start)
 
 SECTIONS {
-	. = 0x80000000;
+	. = 0x80001000;
 	.tlb_miss_entry : {
+        exc_entry = .;
 		*(.text.tlb_miss_entry)
 	}
-	. = 0x80000180;
+	. = exc_entry + 0x180;
 	.exc_gen_entry :  {
 	    *(.text.exc_gen_entry)
 	}

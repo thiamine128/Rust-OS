@@ -23,4 +23,6 @@ clear_bss_loop:
 clear_bss_done:
     mtc0 $0, $12
     li $29, 0x80400000
+    la $2, exc_entry
+    mtc0 $2, $15, 1
     jal rust_main

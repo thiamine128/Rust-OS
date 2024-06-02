@@ -68,7 +68,14 @@ int syscall_ipc_recv(void *dstva);
 int syscall_cgetc();
 int syscall_write_dev(void *, u_int, u_int);
 int syscall_read_dev(void *, u_int, u_int);
-
+int syscall_shmget(int, int);
+int syscall_shmat(int, void*, u_int);
+int syscall_shmdt(int, void*);
+int syscall_shmctl(int, u_int);
+void syscall_semopen(int, int);
+int syscall_semwait(int);
+void syscall_sempost(int);
+void syscall_semkill(int);
 // ipc.c
 void ipc_send(u_int whom, u_int val, const void *srcva, u_int perm);
 u_int ipc_recv(u_int *whom, void *dstva, u_int *perm);

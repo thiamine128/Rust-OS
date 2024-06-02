@@ -1,9 +1,9 @@
 use core::{borrow::BorrowMut, ffi::CStr, mem::{self, size_of}, ptr::{copy, write_volatile}, slice, usize};
 
 
-use crate::{env::{env_destroy, env_sched, envid2ind, get_cur_env_id, EnvID}, err::Error, exception::traps::Trapframe, memory::{frame::frame_alloc, mmu::{PhysAddr, VirtAddr, KSEG1, KSTACKTOP, PTE_V, UTEMP, UTOP}}, print::{printcharc, scancharc}, println, try_or_return};
+use crate::{device::DeviceManager, env::{env_destroy, env_sched, envid2ind, get_cur_env_id, get_cur_env_ind, EnvID}, err::Error, exception::traps::Trapframe, memory::{frame::frame_alloc, mmu::{PhysAddr, VirtAddr, KSEG1, KSTACKTOP, PTE_V, UTEMP, UTOP}, shm::{shm_at, shm_dt, shm_get, shm_rmid, ShmCtl, SHM_MANAGER}}, print::{printcharc, scancharc}, println, try_or_return};
 
-use super::{EnvStatus, ENV_MANAGER};
+use super::{sem::{self, SEM_MAMANER}, EnvStatus, ENV_MANAGER};
 
 #[repr(usize)]
 pub enum SyscallID {
@@ -25,6 +25,14 @@ pub enum SyscallID {
 	CGetC,
 	WriteDev,
 	ReadDev,
+	ShmGet,
+	ShmAt,
+	ShmDt,
+	ShmCtl,
+	SemOpen,
+	SemWait,
+	SemPost,
+	SemKill,
 	SysNo,
 }
 
@@ -49,6 +57,14 @@ impl From<usize> for SyscallID {
 			x if x == SyscallID::CGetC as usize => SyscallID::CGetC,
 			x if x == SyscallID::WriteDev as usize => SyscallID::WriteDev,
 			x if x == SyscallID::ReadDev as usize => SyscallID::ReadDev,
+			x if x == SyscallID::ShmGet as usize => SyscallID::ShmGet,
+			x if x == SyscallID::ShmAt as usize => SyscallID::ShmAt,
+			x if x == SyscallID::ShmDt as usize => SyscallID::ShmDt,
+			x if x == SyscallID::ShmCtl as usize => SyscallID::ShmCtl,
+			x if x == SyscallID::SemOpen as usize => SyscallID::SemOpen,
+			x if x == SyscallID::SemWait as usize => SyscallID::SemWait,
+			x if x == SyscallID::SemPost as usize => SyscallID::SemPost,
+			x if x == SyscallID::SemKill as usize => SyscallID::SemKill,
 			_ => SyscallID::SysNo
 		}
 	}
@@ -291,21 +307,9 @@ fn sys_write_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 	}
 	let kva = VirtAddr::new(pa.as_usize() | KSEG1);
 	match len {
-		1 => {
-			let va = va.as_ptr::<u8>();
-			let kva = kva.as_mut_ptr::<u8>();
-			 unsafe { copy(va, kva, 1) }
-		},
-		2 => {
-			let va = va.as_ptr::<u16>();
-			let kva = kva.as_mut_ptr::<u16>();
-			 unsafe { copy(va, kva, 1) }
-		},
-		4 => {
-			let va = va.as_ptr::<u32>();
-			let kva = kva.as_mut_ptr::<u32>();
-			 unsafe { copy(va, kva, 1) }
-		},
+		1 => DeviceManager.write::<u8>(va, pa),
+		2 => DeviceManager.write::<u16>(va, pa),
+		4 => DeviceManager.write::<u32>(va, pa),
 		_ => {}
 	};
 	0
@@ -321,26 +325,74 @@ fn sys_read_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 	if len != 1 && len != 2 && len != 4 {
 		return -(Error::Inval as i32);
 	}
-	let kva = VirtAddr::new(pa.as_usize() | KSEG1);
 	match len {
-		1 => {
-			let va = va.as_mut_ptr::<u8>();
-			let kva = kva.as_ptr::<u8>();
-			unsafe { copy(kva, va, 1) }
-		},
-		2 => {
-			let va = va.as_mut_ptr::<u16>();
-			let kva = kva.as_ptr::<u16>();
-			unsafe { copy(kva, va, 1) }
-		},
-		4 => {
-			let va = va.as_mut_ptr::<u32>();
-			let kva = kva.as_ptr::<u32>();
-			unsafe { copy(kva, va, 1) }
-		},
+		1 => DeviceManager.read::<u8>(va, pa),
+		2 => DeviceManager.read::<u16>(va, pa),
+		4 => DeviceManager.read::<u32>(va, pa),
 		_ => {}
 	};
 	0
+}
+
+fn sys_shmget(key: usize, size: usize) -> i32 {
+	try_or_return!(shm_get(key, size))
+}
+
+fn sys_shmat(id: usize, va: VirtAddr, perm: usize) -> i32 {
+	let mut em = ENV_MANAGER.borrow_mut();
+	let ind = em.cur_env_ind.unwrap();
+	let env = &mut em.envs[ind];
+	if let Some(pgdir) = &mut env.env_pgdir {
+		try_or_return!(shm_at(id, va, env.env_asid, pgdir, perm))
+	}
+	0
+}
+
+fn sys_shmdt(id: usize, va: VirtAddr) -> i32 {
+	let mut em = ENV_MANAGER.borrow_mut();
+	let ind = em.cur_env_ind.unwrap();
+	let env = &mut em.envs[ind];
+	if let Some(pgdir) = &mut env.env_pgdir {
+		try_or_return!(shm_dt(id, va, env.env_asid, pgdir))
+	}
+	0
+}
+
+fn sys_shmctl(id: usize, ctl: usize) -> i32 {
+	if ctl == ShmCtl::Rmid as usize {
+		try_or_return!(shm_rmid(id));
+	}
+	0
+}
+
+fn sys_semopen(id: usize, n: isize) -> i32 {
+	let mut sem_manager = SEM_MAMANER.borrow_mut();
+	sem_manager.sem_open(id, n);
+	0
+}
+
+fn sys_semwait(id: usize) -> i32 {
+	let mut sem_manager = SEM_MAMANER.borrow_mut();
+	let sem = sem_manager.get(id);
+	let current = sem.load(core::sync::atomic::Ordering::Relaxed);
+	if current == 0 {
+		1
+	} else {
+		let _ = sem.compare_exchange(current, current - 1, core::sync::atomic::Ordering::Acquire, core::sync::atomic::Ordering::Relaxed);
+		0
+	}
+}
+
+fn sys_sempost(id: usize) {
+	let mut sem_manager = SEM_MAMANER.borrow_mut();
+	let sem = sem_manager.get(id);
+	let current = sem.load(core::sync::atomic::Ordering::Relaxed);
+	let _ = sem.compare_exchange(current, current + 1, core::sync::atomic::Ordering::Acquire, core::sync::atomic::Ordering::Relaxed);
+}
+
+fn sys_semkill(id: usize) {
+	let mut sem_manager = SEM_MAMANER.borrow_mut();
+	sem_manager.sem_free(id);
 }
 
 #[inline]
@@ -364,6 +416,14 @@ fn get_syscall(id: SyscallID) -> usize {
 		SyscallID::CGetC => sys_cgetc as usize,
 		SyscallID::WriteDev => sys_write_dev as usize,
 		SyscallID::ReadDev => sys_read_dev as usize,
+		SyscallID::ShmGet => sys_shmget as usize,
+		SyscallID::ShmAt => sys_shmat as usize,
+		SyscallID::ShmDt => sys_shmdt as usize,
+		SyscallID::ShmCtl => sys_shmctl as usize,
+		SyscallID::SemOpen => sys_semopen as usize,
+		SyscallID::SemWait => sys_semwait as usize,
+		SyscallID::SemPost => sys_sempost as usize,
+		SyscallID::SemKill => sys_semkill as usize,
 		SyscallID::SysNo => panic!("No such syscall"),
 	}
 }

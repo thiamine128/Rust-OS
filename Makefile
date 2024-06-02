@@ -48,7 +48,7 @@ users:
 	$(MAKE) -C lib
 	$(MAKE) -C fs
 	$(MAKE) -C user
-	$(MAKE) -C user/test/fs_strong_check
+	$(MAKE) -C user/test/shared_memory
 
 fs-files := user/test/fs_strong_check/rootfs/*
 

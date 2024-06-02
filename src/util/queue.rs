@@ -7,7 +7,8 @@ use crate::memory::mmu::VirtAddr;
 pub struct IndexLink {
     n: usize,
     le_next: Vec<Option<usize>>,
-    le_prev: Vec<Option<usize>>
+    le_prev: Vec<Option<usize>>,
+    rem: usize
 }
 
 pub struct IndexIterator<'a> {
@@ -21,7 +22,8 @@ impl IndexLink {
         IndexLink {
             n: 0,
             le_next: Vec::new(),
-            le_prev: Vec::new()
+            le_prev: Vec::new(),
+            rem: 0
         }
     }
     #[inline]
@@ -66,6 +68,7 @@ impl IndexLink {
         }
         self.le_next[listelm] = Some(elm);
         self.le_prev[elm] = Some(listelm);
+        self.rem += 1;
     }
     #[inline]
     pub fn insert_before(&mut self, listelm: usize, elm: usize) {
@@ -75,6 +78,7 @@ impl IndexLink {
             self.le_next[x] = Some(elm);
         }
         self.le_prev[listelm] = Some(elm);
+        self.rem += 1;
     }
     #[inline]
     pub fn insert_head(&mut self, elm: usize) {
@@ -94,6 +98,7 @@ impl IndexLink {
         }
         self.le_next[elm] = None;
         self.le_prev[elm] = None;
+        self.rem -= 1;
     }
     #[inline]
     pub fn iter(&self) -> IndexIterator {
@@ -105,6 +110,10 @@ impl IndexLink {
     #[inline]
     pub fn get_size_for(len: usize) -> usize {
         (len + 2) * size_of::<Option<usize>>() * 2
+    }
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.rem
     }
 }
 

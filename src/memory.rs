@@ -11,6 +11,7 @@ pub mod frame;
 /// page table
 pub mod page_table;
 pub mod tlb;
+pub mod shm;
 
 
 

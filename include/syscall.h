@@ -22,6 +22,14 @@ enum {
 	SYS_cgetc,
 	SYS_write_dev,
 	SYS_read_dev,
+	SYS_shmget,
+	SYS_shmat,
+	SYS_shmdt,
+	SYS_shmctl,
+	SYS_semopen,
+	SYS_semwait,
+	SYS_sempost,
+	SYS_semkill,
 	MAX_SYSNO,
 };
 

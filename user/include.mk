@@ -6,7 +6,9 @@ USERLIB              := entry.o \
 			libos.o \
 			fork.o \
 			syscall_lib.o \
-			ipc.o
+			ipc.o \
+			shm.o \
+			sem.o
 
 INITAPPS     += devtst.x fstest.x
 USERLIB      += fd.o \

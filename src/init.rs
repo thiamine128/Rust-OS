@@ -1,5 +1,7 @@
 use crate::env;
 use crate::env::schedule;
+use crate::env::sem;
+use crate::env::sem::SEM_MAMANER;
 use crate::env_create_pri;
 use crate::memory;
 // stable modules
@@ -15,10 +17,15 @@ pub extern "C" fn rust_main(_argc: u32, _argv: *const *const u8, _penv: *const *
     //println!("{}, {}", exc_gen_entry as usize, tlb_miss_entry as usize);
     heap::init_heap();
     memory::init_memory(ram_low_size);
-        
+
     env::env_init();
-    env_create_pri!(test_fs_strong_check, 1);
-    env_create_pri!(fs_serv, 1);
+    shm::init();
+    sem::init();
+    env_create_pri!(test_shm_check, 1);
+    env_create_pri!(test_shm_check, 1);
+    env_create_pri!(test_shm_check, 1);
+    env_create_pri!(test_shm_check, 1);
+    //env_create_pri!(fs_serv, 1);
     
     schedule::schedule(0);
     // unsafe {env::test::load_icode_check()};

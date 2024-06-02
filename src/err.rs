@@ -14,7 +14,8 @@ pub enum Error {
     BadPath = 11,
     FileExists = 12,
     NotExec = 13,
-    NotMapped = 14
+    NotMapped = 14,
+    NoSpc = 15,
 }
 
 impl Into<i32> for Error {

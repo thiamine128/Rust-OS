@@ -1,6 +1,7 @@
 pub mod bare;
 pub mod schedule;
 pub mod syscall;
+pub mod sem;
 
 use core::{fmt::{self, LowerHex}, mem::size_of, ptr::{addr_of, addr_of_mut, copy}};
 

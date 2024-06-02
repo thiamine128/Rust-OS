@@ -14,4 +14,6 @@ clear_bss_loop:
 clear_bss_done:
     mtc0 zero, CP0_STATUS
     li sp, 0x80400000
+    la v0, exc_entry
+    mtc0 v0, CP0_EBASE
     jal rust_main

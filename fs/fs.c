@@ -493,7 +493,7 @@ int dir_lookup(struct File *dir, char *name, struct File **file) {
 		// Read the i'th block of 'dir' and get its address in 'blk' using 'file_get_block'.
 		void *blk;
 		/* Exercise 5.8: Your code here. (2/3) */
-		try(file_get_block(dir, 0, &blk));
+		try(file_get_block(dir, i, &blk));
 		struct File *files = (struct File *)blk;
 
 		// Find the target among all 'File's in this block.
@@ -619,7 +619,6 @@ int walk_path(char *path, struct File **pdir, struct File **pfile, char *lastele
 
 				*pfile = 0;
 			}
-
 			return r;
 		}
 	}
