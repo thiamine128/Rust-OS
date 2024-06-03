@@ -301,7 +301,7 @@ impl<'a> EnvManager<'a> {
     }
     #[inline]
     pub fn free(&mut self, ind: usize) {
-        println!("[{}] free env [{}]", match self.cur_env_ind {
+        println!("[{:x}] free env [{:x}]", match self.cur_env_ind {
             Some(ind) => self.get_env(ind).env_id.0,
             None => EnvID::zero().0
         }, self.get_env(ind).env_id.0);

@@ -21,11 +21,9 @@ pub extern "C" fn rust_main(_argc: u32, _argv: *const *const u8, _penv: *const *
     env::env_init();
     shm::init();
     sem::init();
-    env_create_pri!(test_shm_check, 1);
-    env_create_pri!(test_shm_check, 1);
-    env_create_pri!(test_shm_check, 1);
-    env_create_pri!(test_shm_check, 1);
-    //env_create_pri!(fs_serv, 1);
+    
+    env_create_pri!(user_icode, 1);
+    env_create_pri!(fs_serv, 1);
     
     schedule::schedule(0);
     // unsafe {env::test::load_icode_check()};

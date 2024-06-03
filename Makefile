@@ -14,7 +14,7 @@ QEMU_FLAGS += -cpu 24Kc -m 64 -nographic -M malta \
 
 .PHONEY: all run ASM kern users fs-image
 
-all: kern
+all: kern users fs-image
 
 kern: ASM users
 	cargo build --release
@@ -48,9 +48,8 @@ users:
 	$(MAKE) -C lib
 	$(MAKE) -C fs
 	$(MAKE) -C user
-	$(MAKE) -C user/test/shared_memory
 
-fs-files := user/test/fs_strong_check/rootfs/*
+fs-files := 
 
 fs-image:
 	$(MAKE) -C fs image fs-files="$(addprefix ../, $(fs-files))"

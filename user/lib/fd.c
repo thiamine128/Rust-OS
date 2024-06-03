@@ -4,9 +4,7 @@
 #include <mmu.h>
 
 static struct Dev *devtab[] = {&devfile, &devcons,
-#if !defined(LAB) || LAB >= 6
 			       &devpipe,
-#endif
 			       0};
 
 int dev_lookup(int dev_id, struct Dev **dev) {

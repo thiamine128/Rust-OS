@@ -4,10 +4,14 @@ tools_dir   := ../tools
 
 include include.mk
 
+.PRECIOUS: %.b %.b.rs
+
 %.b.rs: %.b
-	$(tools_dir)/bintorust -f $< -o $@ -p test
-%.b: entry.o %.o
-	$(LD) -o $@ $(LDFLAGS) -T ../user.lds $^
+	$(tools_dir)/bintorust -f $< -o $@ -p user
+	cat $@ >> ../src/env/bare.rs
+
+%.b: %.o $(USERLIB)
+	$(LD) -o $@ $(LDFLAGS) -T ./user.lds $^
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
@@ -19,7 +23,7 @@ include include.mk
 
 .PHONY: all clean
 
-all: clean $(USERLIB)
+all: clean $(INITAPPS) $(USERAPPS) $(USERLIB)
 	
 
 clean:

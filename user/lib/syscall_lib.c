@@ -100,9 +100,9 @@ int syscall_semwait(int id) {
 }
 
 void syscall_sempost(int id) {
-	return msyscall(SYS_sempost, id);
+	msyscall(SYS_sempost, id);
 }
 
 void syscall_semkill(int id) {
-	return msyscall(SYS_semkill, id);
+	msyscall(SYS_semkill, id);
 }
