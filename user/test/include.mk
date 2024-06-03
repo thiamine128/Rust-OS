@@ -6,7 +6,7 @@ lib_dir     :=  $(root_dir)/lib
 INCLUDES    +=  -I$(root_dir)/include -I$(user_dir)/include
 
 %.b.rs: %.b
-	$(tools_dir)/bintorust -f $< -o $@ -p test
+	$(tools_dir)/bintorust -f $< -o $@ -p TEST
 
 %.b: SHELL := /bin/bash
 %.b: %.o $(libs)

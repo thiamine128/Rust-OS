@@ -474,6 +474,6 @@ where
 #[macro_export]
 macro_rules! env_create_pri {
     ($name: ident, $pri: expr) => {
-        crate::env::env_create(&concat_idents!(binary_, $name, _start), concat_idents!(binary_, $name, _size), $pri)
+        crate::env::env_create(&concat_idents!(BINARY_, $name, _START), concat_idents!(BINARY_, $name, _SIZE), $pri)
     };
 }

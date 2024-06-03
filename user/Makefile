@@ -7,7 +7,7 @@ include include.mk
 .PRECIOUS: %.b %.b.rs
 
 %.b.rs: %.b
-	$(tools_dir)/bintorust -f $< -o $@ -p user
+	$(tools_dir)/bintorust -f $< -o $@ -p USER
 	cat $@ >> ../src/env/bare.rs
 
 %.b: %.o $(USERLIB)

@@ -12,7 +12,7 @@ FSIMGFILES  := rootfs/motd rootfs/newmotd $(USERAPPS) $(fs-files)
 .PRECIOUS: %.b %.b.c
 
 %.b.rs: %.b
-	$(tools_dir)/bintorust -f $< -o $@ -p fs
+	$(tools_dir)/bintorust -f $< -o $@ -p FS
 
 %.b: %.o $(USERLIB) $(FSLIB)
 	$(LD) -o $@ $(LDFLAGS) -T $(user_dir)/user.lds $^

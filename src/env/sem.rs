@@ -1,8 +1,8 @@
-use core::sync::atomic::{self, AtomicI32, AtomicIsize, AtomicUsize};
+use core::sync::atomic::{self, AtomicIsize};
 
 use alloc::vec::Vec;
 
-use crate::{err::Error, sync::cell::UPSafeCell};
+use crate::sync::cell::UPSafeCell;
 
 pub const SEM_NUM: usize = 128;
 

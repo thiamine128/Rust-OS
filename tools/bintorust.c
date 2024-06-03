@@ -66,10 +66,15 @@ int main(int argc, char *args[]) {
 	assert(size < BMAX);
 	size_t n = fread(binary, sizeof(char), size, bin);
 	assert(n == size);
+
+	char rsbin[512];
+	for (int i = 0; bin_file[i]; ++i) {
+		rsbin[i] = toupper(bin_file[i]);
+	}
 	fprintf(out,
-		"pub const binary_%s_%s_size: usize = %d;\n"
-		"pub const binary_%s_%s_start: [u8; %d] = [",
-		prefix, bin_file, size, prefix, bin_file, size);
+		"pub const BINARY_%s_%s_SIZE: usize = %d;\n"
+		"pub const BINARY_%s_%s_START: [u8; %d] = [",
+		prefix, rsbin, size, prefix, rsbin, size);
 	for (i = 0; i < size; i++) {
 		fprintf(out, "0x%x%c", binary[i], i < size - 1 ? ',' : ']');
 	}

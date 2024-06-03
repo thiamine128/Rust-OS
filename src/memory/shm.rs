@@ -1,10 +1,5 @@
-use core::array::from_fn;
-
-use alloc::vec::Vec;
-
 use crate::{env::ASID, err::Error, println, sync::cell::UPSafeCell};
-
-use super::{frame::{frame_alloc, frame_dealloc, frame_decref, frame_incref, num_free_frames}, mmu::{PhysPageNum, VirtAddr, PAGE_SIZE}, page_table::PageTable};
+use super::{frame::{frame_alloc, frame_decref, frame_incref, num_free_frames}, mmu::{PhysPageNum, VirtAddr, PAGE_SIZE}, page_table::PageTable};
 
 pub const SHMALL: usize = 4096;
 pub const SHMMNI: usize = 128;

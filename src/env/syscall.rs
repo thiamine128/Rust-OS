@@ -1,9 +1,9 @@
-use core::{borrow::BorrowMut, ffi::CStr, mem::{self, size_of}, ptr::{copy, write_volatile}, slice, usize};
+use core::{borrow::BorrowMut, ffi::CStr, mem::{self, size_of}, ptr::write_volatile, slice, usize};
 
 
-use crate::{device::DeviceManager, env::{env_destroy, env_sched, envid2ind, get_cur_env_id, get_cur_env_ind, EnvID}, err::Error, exception::traps::Trapframe, memory::{frame::frame_alloc, mmu::{PhysAddr, VirtAddr, KSEG1, KSTACKTOP, PTE_V, UTEMP, UTOP}, shm::{shm_at, shm_dt, shm_get, shm_rmid, ShmCtl, SHM_MANAGER}}, print::{printcharc, scancharc}, println, try_or_return};
+use crate::{device::DeviceManager, env::{env_destroy, env_sched, envid2ind, get_cur_env_id, EnvID}, err::Error, exception::traps::Trapframe, memory::{frame::frame_alloc, mmu::{PhysAddr, VirtAddr, KSTACKTOP, PTE_V, UTEMP, UTOP}, shm::{shm_at, shm_dt, shm_get, shm_rmid, ShmCtl}}, print::{printcharc, scancharc}, println, try_or_return};
 
-use super::{sem::{self, SEM_MAMANER}, EnvStatus, ENV_MANAGER};
+use super::{sem::SEM_MAMANER, EnvStatus, ENV_MANAGER};
 
 #[repr(usize)]
 pub enum SyscallID {
@@ -305,7 +305,6 @@ fn sys_write_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 	if len != 1 && len != 2 && len != 4 {
 		return -(Error::Inval as i32);
 	}
-	let kva = VirtAddr::new(pa.as_usize() | KSEG1);
 	match len {
 		1 => DeviceManager.write::<u8>(va, pa),
 		2 => DeviceManager.write::<u16>(va, pa),
