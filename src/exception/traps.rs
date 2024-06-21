@@ -9,26 +9,44 @@ extern "C" {
     fn handle_mod();
     fn handle_reserved();
 }
-
+/// register constant
 pub const STATUS_CU3: usize = 0x80000000;
+/// register constant
 pub const STATUS_CU2: usize = 0x40000000;
+/// register constant
 pub const STATUS_CU1: usize = 0x20000000;
+/// register constant
 pub const STATUS_CU0: usize = 0x10000000;
+/// register constant
 pub const STATUS_BEV: usize = 0x00400000;
+/// register constant
 pub const STATUS_IM0: usize = 0x0100;
+/// register constant
 pub const STATUS_IM1: usize = 0x0200;
+/// register constant
 pub const STATUS_IM2: usize = 0x0400;
+/// register constant
 pub const STATUS_IM3: usize = 0x0800;
+/// register constant
 pub const STATUS_IM4: usize = 0x1000;
+/// register constant
 pub const STATUS_IM5: usize = 0x2000;
+/// register constant
 pub const STATUS_IM6: usize = 0x4000;
+/// register constant
 pub const STATUS_IM7: usize = 0x8000;
+/// register constant
 pub const STATUS_UM: usize = 0x0010;
+/// register constant
 pub const STATUS_R0: usize = 0x0008;
+/// register constant
 pub const STATUS_ERL: usize = 0x0004;
+/// register constant
 pub const STATUS_EXL: usize = 0x0002;
+/// register constant
 pub const STATUS_IE: usize = 0x0001;
 
+/// exception handlers array
 #[no_mangle]
 static exception_handlers: [unsafe extern "C" fn(); 32] = {
     let mut template = [handle_reserved as unsafe extern "C" fn();32];
@@ -40,6 +58,7 @@ static exception_handlers: [unsafe extern "C" fn(); 32] = {
     template
 };
 
+/// trap frame
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Trapframe {
@@ -53,6 +72,7 @@ pub struct Trapframe {
 }
 
 impl Trapframe {
+    /// create a new trapframe
     pub fn new() -> Self {
         Trapframe {
             regs: [0; 32],
@@ -64,7 +84,7 @@ impl Trapframe {
             cp0_epc: 0
         }
     }
-
+    /// do tlb mod
     #[inline]
     pub fn do_tlb_mod(&mut self) {
         let tmp_tf = self.clone();
@@ -89,6 +109,7 @@ impl Trapframe {
     }
 }
 
+/// do reserved exception handler
 #[no_mangle]
 pub extern "C" fn do_reserved() {
     panic!("do reserved");

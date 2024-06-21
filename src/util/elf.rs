@@ -12,16 +12,26 @@ type Elf32Off = u32;
 type Elf32Section = u16;
 type Elf32Symndx = u32;
 
+/// ELF Constant
 pub const EI_NIDENT: usize = 16;
+/// ELF Constant
 pub const EI_MAG0: usize = 0;
+/// ELF Constant
 pub const ELFMAG0: u8 = 0x7f;
+/// ELF Constant
 pub const EI_MAG1: usize = 1;
+/// ELF Constant
 pub const ELFMAG1: u8 = b'E';
+/// ELF Constant
 pub const EI_MAG2: usize = 2;
+/// ELF Constant
 pub const ELFMAG2: u8 = b'L';
+/// ELF Constant
 pub const EI_MAG3: usize = 3;
+/// ELF Constant
 pub const ELFMAG3: u8 = b'F';
 
+/// Elf ehdr
 #[repr(C)]
 pub struct Elf32Ehdr {
     e_ident: [u8; EI_NIDENT],
@@ -40,6 +50,8 @@ pub struct Elf32Ehdr {
     e_shstrndx: Elf32Half
 }
 
+
+/// Elf phdr
 #[repr(C)]
 pub struct Elf32Phdr {
     pub p_type: Elf32Word,
@@ -52,36 +64,47 @@ pub struct Elf32Phdr {
     p_align: Elf32Word
 }
 
+/// Phdr iterator
 pub struct PhdrIterator<'a> {
     ehdr: &'a Elf32Ehdr,
     ind: usize
 }
 
-/* Legal values for p_type (segment type).  */
-
+/// ELF Constant
 pub const PT_NULL: usize = 0;	     /* Program header table entry unused */
+/// ELF Constant
 pub const PT_LOAD: u32 = 1;	     /* Loadable program segment */
+/// ELF Constant
 pub const PT_DYNAMIC: usize = 2;	     /* Dynamic linking information */
+/// ELF Constant
 pub const PT_INTERP: usize = 3;	     /* Program interpreter */
+/// ELF Constant
 pub const PT_NOTE: usize = 4;	     /* Auxiliary information */
+/// ELF Constant
 pub const PT_SHLIB: usize = 5;	     /* Reserved */
+/// ELF Constant
 pub const PT_PHDR: usize = 6;	     /* Entry for header table itself */
+/// ELF Constant
 pub const PT_NUM: usize = 7;	     /* Number of defined types.  */
+/// ELF Constant
 pub const PT_LOOS: usize = 0x60000000;   /* Start of OS-specific */
+/// ELF Constant
 pub const PT_HIOS: usize = 0x6fffffff;   /* End of OS-specific */
+/// ELF Constant
 pub const PT_LOPROC: usize = 0x70000000; /* Start of processor-specific */
+/// ELF Constant
 pub const PT_HIPROC: usize = 0x7fffffff; /* End of processor-specific */
 
-/* Legal values for p_flags (segment flags).  */
-
+/// ELF Constant
 pub const PF_X: u32 = 1 << 0;	       /* Segment is executable */
+/// ELF Constant
 pub const PF_W: u32 = 1 << 1;	       /* Segment is writable */
+/// ELF Constant
 pub const PF_R: u32 = 1 << 2;	       /* Segment is readable */
+/// ELF Constant
 pub const PF_MASKPROC: u32 = 0xf0000000; /* Processor-specific */
 
-/* Utils provided by our ELF loader. */
-
-
+/// read elf from memory data
 pub fn elf_from(binary: &[u8], size: usize) -> Option<&Elf32Ehdr> {
     let ehdr_ptr = binary.as_ptr() as *const Elf32Ehdr;
     let ehdr = unsafe { ehdr_ptr.as_ref() };
@@ -95,6 +118,7 @@ pub fn elf_from(binary: &[u8], size: usize) -> Option<&Elf32Ehdr> {
     }
 }
 
+/// load elf segment from memory data via map_page
 pub fn elf_load_seg<F>(ph: &Elf32Phdr, bin: &[u8], mut map_page: F) -> Result<(), Error>
 where F: FnMut(VirtAddr, usize, usize, Option<&[u8]>, usize)->Result<(), Error> {
     let va = VirtAddr::new(ph.p_vaddr as usize);
@@ -129,7 +153,7 @@ where F: FnMut(VirtAddr, usize, usize, Option<&[u8]>, usize)->Result<(), Error> 
 
 impl<'a> Iterator for PhdrIterator<'a> {
     type Item = usize;
-
+    /// next phdr
     fn next(&mut self) -> Option<Self::Item> {
         if self.ind < self.ehdr.e_phnum as usize {
             let result = self.ehdr.e_phoff as usize + self.ind * self.ehdr.e_phentsize as usize;
@@ -142,6 +166,7 @@ impl<'a> Iterator for PhdrIterator<'a> {
 }
 
 impl Elf32Ehdr {
+    /// get phdr iterator
     pub fn phdr_iter(&self) -> PhdrIterator {
         PhdrIterator {
             ehdr: self,

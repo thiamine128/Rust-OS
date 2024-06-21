@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 
 use crate::memory::mmu::VirtAddr;
 
+/// index link for linked list
 pub struct IndexLink {
     n: usize,
     le_next: Vec<Option<usize>>,
@@ -11,12 +12,14 @@ pub struct IndexLink {
     rem: usize
 }
 
+/// iterator
 pub struct IndexIterator<'a> {
     index_link: &'a IndexLink,
     index: usize,
 }
 
 impl IndexLink {
+    /// create a new link
     #[inline]
     pub const fn new() -> Self {
         IndexLink {
@@ -26,6 +29,7 @@ impl IndexLink {
             rem: 0
         }
     }
+    /// init list from raw pointer
     #[inline]
     pub fn init_from_ptr(&mut self, addr: VirtAddr, n: usize) {
         self.n = n;
@@ -40,6 +44,7 @@ impl IndexLink {
         self.le_prev[n + 1] = Some(n);
     }
 
+    /// simple init
     #[inline]
     pub fn init(&mut self, n: usize) {
         self.n = n;
@@ -52,14 +57,19 @@ impl IndexLink {
         self.le_prev[n + 1] = Some(n);
     }
 
+    /// check if empty
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.le_next[self.n] == Some(self.n + 1)
     }
+
+    /// first index
     #[inline]
     pub fn first(&self) -> Option<usize> {
         self.le_next[self.n]
     }
+
+    /// insert after an element index
     #[inline]
     pub fn insert_after(&mut self, listelm: usize, elm: usize) {
         self.le_next[elm] = self.le_next[listelm];
@@ -70,6 +80,8 @@ impl IndexLink {
         self.le_prev[elm] = Some(listelm);
         self.rem += 1;
     }
+
+    /// insert before an element index
     #[inline]
     pub fn insert_before(&mut self, listelm: usize, elm: usize) {
         self.le_prev[elm] = self.le_prev[listelm];
@@ -80,14 +92,19 @@ impl IndexLink {
         self.le_prev[listelm] = Some(elm);
         self.rem += 1;
     }
+    /// wrapped call for insert after
     #[inline]
     pub fn insert_head(&mut self, elm: usize) {
         self.insert_after(self.n, elm);
     }
+
+    /// wrapped call for insert before
     #[inline]
     pub fn insert_tail(&mut self, elm: usize) {
         self.insert_before(self.n + 1, elm);
     }
+
+    /// remove an index from list
     #[inline]
     pub fn remove(&mut self, elm: usize) {
         if let Some(x) = self.le_next[elm] {
@@ -100,6 +117,8 @@ impl IndexLink {
         self.le_prev[elm] = None;
         self.rem -= 1;
     }
+
+    /// get iterator for list
     #[inline]
     pub fn iter(&self) -> IndexIterator {
         IndexIterator {
@@ -107,6 +126,8 @@ impl IndexLink {
             index: self.n
         }
     }
+
+    /// get size for an index link of size len
     #[inline]
     pub fn get_size_for(len: usize) -> usize {
         (len + 2) * size_of::<Option<usize>>() * 2
@@ -120,6 +141,7 @@ impl IndexLink {
 impl<'a> Iterator for IndexIterator<'a> {
     type Item = usize;
     
+    /// next element
     fn next(&mut self) -> Option<Self::Item> {
 
         match self.index_link.le_next[self.index] {

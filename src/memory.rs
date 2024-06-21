@@ -10,11 +10,12 @@ pub mod heap;
 pub mod frame;
 /// page table
 pub mod page_table;
+/// tlb utils
 pub mod tlb;
+/// shared memory
 pub mod shm;
 
-
-
+/// initialize frame allocator
 pub fn init_memory(memsize: usize) {
     extern "C" {
         fn end();

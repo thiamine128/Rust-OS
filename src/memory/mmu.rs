@@ -6,7 +6,9 @@ use super::page_table::Pte;
 pub const NASID: usize = 256;
 /// mips page size
 pub const PAGE_SIZE: usize = 4096;
+/// page table size
 pub const PTMAP: usize = PAGE_SIZE;
+/// page directory size
 pub const PDMAP: usize = 4 * 1024 * 1024;
 /// page shift
 pub const PGSHIFT: usize = 12;
@@ -14,28 +16,51 @@ pub const PGSHIFT: usize = 12;
 pub const PDSHIFT: usize = 22;
 /// page table entry hard flag shift
 pub const PTE_HARDFLAG_SHIFT: usize = 6;
+/// pte flag
 pub const PTE_G: usize = 0x0001 << PTE_HARDFLAG_SHIFT;
+/// pte flag
 pub const PTE_V: usize = 0x0002 << PTE_HARDFLAG_SHIFT;
+/// pte flag
 pub const PTE_D: usize = 0x0004 << PTE_HARDFLAG_SHIFT;
+/// pte flag
 pub const PTE_C_CACHEABLE: usize = 0x0018 << PTE_HARDFLAG_SHIFT;
+/// pte flag
 pub const PTE_C_UNCACHEABLE: usize = 0x0010 << PTE_HARDFLAG_SHIFT;
+/// pte flag
 pub const PTE_COW: usize = 0x0001;
+/// pte flag
 pub const PTE_LIBRARY: usize = 0x0002;
+/// kuseg
 pub const KUSEG: usize = 0x00000000;
+/// kseg0
 pub const KSEG0: usize = 0x80000000;
+/// kseg1
 pub const KSEG1: usize = 0xA0000000;
+/// kseg2
 pub const KSEG2: usize = 0xC0000000;
+/// kernel base
 pub const KERNBASE: usize = 0x80020000;
+/// kernel stack
 pub const KSTACKTOP: usize = ULIM + PDMAP;
+/// ulim
 pub const ULIM: usize = 0x80000000;
+/// userspace page table
 pub const UVPT: VirtAddr = VirtAddr::new(ULIM - PDMAP);
+/// userspace frames info
 pub const UPAGES: VirtAddr = VirtAddr::new(UVPT.0 - PDMAP);
+/// userspace envs info
 pub const UENVS: VirtAddr = VirtAddr::new(UPAGES.0 - PDMAP);
+/// utop
 pub const UTOP: VirtAddr = UENVS;
+/// uxstacktop
 pub const UXSTACKTOP: VirtAddr = UTOP;
+/// ustacktop
 pub const USTACKTOP: VirtAddr = VirtAddr::new(UTOP.0 - 2 * PTMAP);
+/// utext
 pub const UTEXT: usize = PDMAP;
+/// ucow
 pub const UCOW: usize = UTEXT - PTMAP;
+/// utemp
 pub const UTEMP: VirtAddr = VirtAddr::new(UCOW - PTMAP);
 
 /// Physical address, wrapped numeric value.
@@ -64,6 +89,7 @@ impl VirtAddr {
     pub const fn new(addr: usize) -> Self{
         Self(addr)
     }
+    /// zero address
     #[inline]
     pub const fn zero() -> Self {
         Self(0)
@@ -108,14 +134,17 @@ impl VirtAddr {
     pub const fn ptx(self) -> usize {
         (self.0 >> PGSHIFT) & 0x3ff
     }
+    /// aligned down to frames
     #[inline]
     pub const fn page_align_down(self) -> Self {
         Self::new(self.0 & !0xfff)
     }
+    /// page offset
     #[inline]
     pub const fn page_offset(self) -> usize {
         self.0 & 0xfff
     }
+    /// check if is aligned
     #[inline]
     pub const fn is_aligned(self, align: usize) -> bool {
         self.0 % align == 0
@@ -138,13 +167,14 @@ impl fmt::Pointer for PhysAddr {
 
 impl Add<usize> for VirtAddr {
     type Output = VirtAddr;
-
+    /// for convenient add
     fn add(self, rhs: usize) -> Self::Output {
         Self::Output::new(self.0 + rhs)
     }
 }
 
 impl AddAssign<usize> for VirtAddr {
+    /// for convenient add assign
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
     }
@@ -156,6 +186,7 @@ impl PhysAddr {
     pub const fn new(addr: usize) -> Self{
         Self(addr)
     }
+    /// get phys address from pte
     #[inline]
     pub const fn new_from_pte(pte: Pte, offset: usize) -> Self {
         Self((pte.ppn().as_usize() << PGSHIFT) + offset)
@@ -179,7 +210,7 @@ impl PhysAddr {
     pub const fn into_kva(self) -> VirtAddr {
         VirtAddr::new(self.0 + ULIM)
     }
-
+    /// check if is aligned
     #[inline]
     pub const fn is_aligned(self, align: usize) -> bool {
         self.0 % align == 0
@@ -188,13 +219,14 @@ impl PhysAddr {
 
 impl Add<usize> for PhysAddr {
     type Output = PhysAddr;
-
+    /// for convenient add
     fn add(self, rhs: usize) -> Self::Output {
         Self::Output::new(self.0 + rhs)
     }
 }
 
 impl AddAssign<usize> for PhysAddr {
+    /// for convenient add assign
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
     }
@@ -236,13 +268,14 @@ impl From<Pte> for PhysAddr {
 
 impl Add<usize> for PhysPageNum {
     type Output = PhysPageNum;
-
+    /// for convenient add
     fn add(self, rhs: usize) -> Self::Output {
         Self::Output::new(self.0 + rhs)
     }
 }
 
 impl AddAssign<usize> for PhysPageNum {
+    /// for convenient add assign
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
     }
@@ -263,6 +296,7 @@ impl From<PhysPageNum> for PhysAddr {
 }
 
 impl Step for PhysPageNum {
+    /// steps between
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         if *start <= *end {
             Some(end.0 - start.0)
@@ -270,14 +304,14 @@ impl Step for PhysPageNum {
             None
         }
     }
-
+    /// foward
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
         match usize::checked_add(start.0, count) {
             Some(n) => Some(Self::new(n)),
             None => None,
         }
     }
-
+    /// backward
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
         match usize::backward_checked(start.0, count) {
             Some(n) => Some(Self::new(n)),

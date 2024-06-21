@@ -1,6 +1,7 @@
 //! Provide the intrusive LinkedList
 
 use core::marker::PhantomData;
+use core::ptr::{copy, write};
 use core::{fmt, ptr};
 
 /// An intrusive linked list
@@ -30,7 +31,7 @@ impl LinkedList {
     /// Push `item` to the front of the list
     pub fn push(&mut self, item: *mut usize) {
         let head = self.head as usize;
-        unsafe {*item = head };
+        unsafe {write(item, head);}
         self.head = item;
     }
 
@@ -102,9 +103,7 @@ impl ListNode {
     /// Remove the node from the list
     pub fn pop(self) -> *mut usize {
         // Skip the current one
-        unsafe {
-            *(self.prev) = *(self.curr);
-        }
+        unsafe { copy(self.prev, self.curr, 1); }
         self.curr
     }
 

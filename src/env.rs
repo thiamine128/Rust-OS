@@ -1,6 +1,10 @@
+/// embeded user code
 pub mod bare;
+/// process scheduler
 pub mod schedule;
+/// os syscall
 pub mod syscall;
+/// semaphore
 pub mod sem;
 
 use core::{fmt::{self, LowerHex}, mem::size_of, ptr::{addr_of, addr_of_mut, copy}};
@@ -9,22 +13,27 @@ use alloc::vec::Vec;
 
 use crate::{err::Error, exception::traps::{Trapframe, STATUS_EXL, STATUS_IE, STATUS_IM7, STATUS_UM}, memory::{frame::{frame_alloc, frame_base_phy_addr, frame_base_size, frame_decref, frame_incref}, mmu::{PhysAddr, PhysPageNum, VirtAddr, KSTACKTOP, NASID, PDSHIFT, PGSHIFT, PTE_G, PTE_V, UENVS, UPAGES, USTACKTOP, UTOP, UVPT}, page_table::{PageTable, Pte, PAGE_TABLE_ENTRIES}, tlb::tlb_invalidate}, println, sync::cell::UPSafeCell, util::{elf::{elf_from, elf_load_seg, Elf32Phdr, PT_LOAD}, queue::IndexLink}};
 
+/// log env size
 const LOG2NENV: usize = 10;
+/// env size
 const NENV: usize = 1 << LOG2NENV;
 
-
+/// global env manager
 static ENV_MANAGER: UPSafeCell<EnvManager<'static>> = UPSafeCell::new(EnvManager::new());
 
 extern "C" {
     fn env_pop_tf(addr: usize, asid: usize) -> !;
 }
 
+/// init env manager
 #[inline]
 pub fn env_init() { ENV_MANAGER.borrow_mut().init(); }
 
+/// get current env index
 #[inline]
 pub fn get_cur_env_ind() -> Option<usize> { ENV_MANAGER.borrow_mut().cur_env_ind }
 
+/// get current env id
 #[inline]
 pub fn get_cur_env_id() -> Option<EnvID>{
     let em = ENV_MANAGER.borrow_mut();
@@ -34,9 +43,11 @@ pub fn get_cur_env_id() -> Option<EnvID>{
     }
 }
 
+/// convert env id to env index
 #[inline]
 pub fn envid2ind(envid: EnvID, checkperm: i32) -> Result<usize, Error> { ENV_MANAGER.borrow_mut().envid2ind(envid, checkperm) }
 
+/// get user tlb mod entrypoint
 #[inline]
 pub fn user_tlb_mod_entry() -> usize {
     let em = ENV_MANAGER.borrow_mut();
@@ -46,14 +57,17 @@ pub fn user_tlb_mod_entry() -> usize {
     return ent;
 }
 
+/// ASID struct
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct ASID(usize);
 
+/// EnvID struct
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct EnvID(usize);
 
+/// env status enum
 #[repr(usize)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EnvStatus {
@@ -62,6 +76,7 @@ pub enum EnvStatus {
     NotRunnable = 2
 }
 
+/// env struct
 #[repr(C)]
 pub struct Env<'a> {
     env_tf: Trapframe,
@@ -80,6 +95,7 @@ pub struct Env<'a> {
     env_runs: usize,
 }
 
+/// env manager struct
 pub struct EnvManager<'a> {
     envs: Vec<Env<'a>>,
     base_pgdir: PageTable,
@@ -148,6 +164,7 @@ impl From<usize> for EnvStatus {
 }
 
 impl<'a> Env<'a> {
+    /// create a new env
     pub fn new() -> Self {
         Env {
             env_tf: Trapframe::new(),
@@ -166,13 +183,14 @@ impl<'a> Env<'a> {
             env_runs: 0
         }
     }
-
+    /// load trap frame from pointer
     pub fn load_tf(&mut self, tf: *const Trapframe) {
         self.env_tf = unsafe {*tf};
     }
 }
 
 impl<'a> EnvManager<'a> {
+    /// create a new env manager
     #[inline]
     pub const fn new() -> Self {
         EnvManager {
@@ -187,6 +205,7 @@ impl<'a> EnvManager<'a> {
         }
     }
 
+    /// init a env mananger
     #[inline]
     pub fn init(&mut self) {
         self.envs.resize_with(NENV, || {
@@ -203,16 +222,19 @@ impl<'a> EnvManager<'a> {
         self.base_pgdir.map_segment(ASID::zero(), PhysAddr::from_kva(self.envs_raw_ptr()), UENVS, self.envs_size(), PTE_G);
     }
 
+    /// get envs array pointer
     #[inline]
     fn envs_raw_ptr(&self) -> VirtAddr {
         VirtAddr::from_ptr(self.envs.as_ptr())
     }
     
+    /// get envs array size
     #[inline]
     fn envs_size(&self) -> usize {
         self.envs.len() * size_of::<Env>()
     }
 
+    /// alloc a new asid
     #[inline]
     pub fn asid_alloc(&mut self) -> Result<ASID, Error> {
         for i in 0..NASID {
@@ -226,6 +248,7 @@ impl<'a> EnvManager<'a> {
         Err(Error::NoFreeEnv)
     }
 
+    /// free an asid
     #[inline]
     pub fn asid_free(&mut self, asid: ASID) {
         let i = asid.as_usize();
@@ -234,12 +257,14 @@ impl<'a> EnvManager<'a> {
         self.asid_bitmap[index] &= !(1 << inner);
     }
 
+    /// create a new env id
     #[inline]
     pub fn mkenvid(&mut self, ind: usize) -> EnvID {
         self.alloced_env += 1;
         return EnvID::new((self.alloced_env << (1 + LOG2NENV)) | ind);
     }
 
+    /// setup a env identified bt index
     #[inline]
     fn setup(&mut self, ind: usize) -> Result<(), Error> {
         let env = &mut self.envs[ind];
@@ -256,6 +281,7 @@ impl<'a> EnvManager<'a> {
         }
         Ok(())
     }
+    /// alloc a new env
     #[inline]
     pub fn alloc(&mut self, parent_id: EnvID) -> Result<EnvID, Error>{
         if self.env_free_list.is_empty() {
@@ -276,6 +302,7 @@ impl<'a> EnvManager<'a> {
         self.env_free_list.remove(ind);
         Ok(envid)
     }
+    /// convert env id to env index
     #[inline]
     pub fn envid2ind(&self, id: EnvID, checkperm: i32) -> Result<usize, Error> {
         
@@ -295,10 +322,12 @@ impl<'a> EnvManager<'a> {
         }
         Ok(id.envx())
     }
+    /// get env reference by index
     #[inline]
     pub fn get_env(&mut self, ind: usize) -> &mut Env<'a>{
         &mut self.envs[ind]
     }
+    /// free an env identified by index
     #[inline]
     pub fn free(&mut self, ind: usize) {
         println!("[{:x}] free env [{:x}]", match self.cur_env_ind {
@@ -334,6 +363,8 @@ impl<'a> EnvManager<'a> {
         self.env_sched_list.remove(ind);
 
     }
+
+    /// create a env from code with priority
     #[inline]
     pub fn create(&mut self, binary: &[u8], size: usize, priority: usize) -> EnvID {
         let envid = self.alloc(EnvID::zero()).unwrap();
@@ -347,6 +378,7 @@ impl<'a> EnvManager<'a> {
     }
 }
 
+/// destroy an env
 #[inline]
 pub fn env_destroy(ind: usize) {
     let mut em = ENV_MANAGER.borrow_mut();
@@ -360,10 +392,12 @@ pub fn env_destroy(ind: usize) {
     }
 }
 
+/// code befroe a env start running
 pub fn pre_env_run(_: usize) {
 
 }
 
+/// run an env
 pub fn env_run(ind: usize) -> ! {
     //pre_env_run(ind);
     let mut em = ENV_MANAGER.borrow_mut();
@@ -388,6 +422,8 @@ pub fn env_run(ind: usize) -> ! {
     unsafe {env_pop_tf(tf_addr, asid)}
 
 }
+
+/// schedule env to run
 pub fn env_sched(y: i32) -> ! {
     let mut em = ENV_MANAGER.borrow_mut();
     em.count -= 1;
@@ -410,6 +446,7 @@ pub fn env_sched(y: i32) -> ! {
     env_run(next_run);
 }
 
+/// map elf data to memeory
 fn load_icode_mapper(env: &mut Env, va: VirtAddr, offset: usize, perm: usize, src: Option<&[u8]>, len: usize) -> Result<(), Error> {
     let ppn = frame_alloc()?;
     if src.is_some() {
@@ -424,6 +461,7 @@ fn load_icode_mapper(env: &mut Env, va: VirtAddr, offset: usize, perm: usize, sr
     Ok(())
 }
 
+/// load elf data
 fn load_icode(env: &mut Env, binary: &[u8], size: usize) {
     let ehdr = elf_from(binary, size);
     if ehdr.is_none() {
@@ -442,19 +480,25 @@ fn load_icode(env: &mut Env, binary: &[u8], size: usize) {
     env.env_tf.cp0_epc = ehdr.e_entry as usize;
 }
 
+/// insert into sched list
 pub fn insert_sched(envid: EnvID) {
     let sched_list = &mut ENV_MANAGER.borrow_mut().env_sched_list;
     sched_list.insert_tail(envid.envx());
 }
+/// alloc an env
 pub fn env_alloc(parent_id: EnvID) -> Result<EnvID, Error> {
     ENV_MANAGER.borrow_mut().alloc(parent_id)
 }
+/// free an env
 pub fn env_free(ind: usize) {
     ENV_MANAGER.borrow_mut().free(ind);
 }
+/// create an env
 pub fn env_create(binary: &[u8], size: usize, priority: usize) -> EnvID {
     ENV_MANAGER.borrow_mut().create(binary, size, priority)
 }
+
+/// operate on page dir of current env
 pub fn cur_pgdir<F>(mut f: F)
 where
     F : FnMut(&mut PageTable) {
@@ -463,6 +507,7 @@ where
         f(pgdir);
     }
 }
+/// operate on page dir of an env
 pub fn env_pgdir<F>(ind: usize, mut f: F)
 where
     F : FnMut(&mut PageTable) {
@@ -471,6 +516,7 @@ where
     }
 }
 
+/// create env from code macro
 #[macro_export]
 macro_rules! env_create_pri {
     ($name: ident, $pri: expr) => {

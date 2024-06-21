@@ -4,13 +4,16 @@ use super::{frame::{frame_alloc, frame_decref, frame_incref, num_free_frames}, m
 pub const SHMALL: usize = 4096;
 pub const SHMMNI: usize = 128;
 
+/// global shared memory manager
 pub static SHM_MANAGER: UPSafeCell<ShmManager> = UPSafeCell::new(ShmManager::new());
 
+/// init shared memory manager
 pub fn init() {
     let mut shm_manager = SHM_MANAGER.borrow_mut();
     shm_manager.init();
 }
 
+/// get or create shared memory
 pub fn shm_get(key: usize, size: usize) -> Result<i32, Error> {
     let nframes = (size + PAGE_SIZE - 1) / PAGE_SIZE;
     if nframes == 0 {
@@ -30,6 +33,7 @@ pub fn shm_get(key: usize, size: usize) -> Result<i32, Error> {
     Ok(shm_id.unwrap() as i32)
 }
 
+/// map shared memory at given address
 pub fn shm_at(id: usize, va: VirtAddr, asid: ASID, pgdir: &mut PageTable, perm: usize) -> Result<(), Error>{
     let mut shm_manager = SHM_MANAGER.borrow_mut();
     if id >= SHMMNI || shm_manager.shms[id].nblocks == 0 {
@@ -40,6 +44,7 @@ pub fn shm_at(id: usize, va: VirtAddr, asid: ASID, pgdir: &mut PageTable, perm: 
     Ok(())
 }
 
+/// deattach shared memory
 pub fn shm_dt(id: usize, va: VirtAddr, asid: ASID, pgdir: &mut PageTable) -> Result<(), Error> {
     let mut shm_manager = SHM_MANAGER.borrow_mut();
     if id >= SHMMNI || shm_manager.shms[id].nblocks == 0 {
@@ -55,6 +60,7 @@ pub fn shm_dt(id: usize, va: VirtAddr, asid: ASID, pgdir: &mut PageTable) -> Res
     Ok(())
 }
 
+/// mark shared memory to be removed
 pub fn shm_rmid(id: usize) -> Result<(), Error> {
     let mut shm_manager = SHM_MANAGER.borrow_mut();
     if shm_manager.shms[id].nblocks == 0 {
@@ -64,17 +70,20 @@ pub fn shm_rmid(id: usize) -> Result<(), Error> {
     Ok(())
 }
 
+/// shared memory flags
 #[repr(usize)]
 pub enum ShmCtl {
     Rmid = 1
 }
 
+/// shared memory block, pointing to a frame
 #[derive(Clone, Copy)]
 pub struct ShmBlock {
     ppn: PhysPageNum,
     next: Option<usize>
 }
 
+/// shared memory, a linked list of shared memory block
 #[derive(Clone, Copy)]
 pub struct Shm {
     head: usize,
@@ -84,6 +93,7 @@ pub struct Shm {
     key: usize,
 }
 
+/// shared memory manger
 pub struct ShmManager {
     blocks: [ShmBlock; SHMALL],
     free_blocks: [usize; SHMALL],
@@ -94,6 +104,7 @@ pub struct ShmManager {
 }
 
 impl ShmBlock {
+    /// create a new shared memory block
     #[inline]
     pub const fn new() -> Self {
         Self {
@@ -104,6 +115,7 @@ impl ShmBlock {
 }
 
 impl Shm {
+    /// create a new shared memory
     #[inline]
     pub const fn new() -> Self {
         Self {
@@ -117,6 +129,7 @@ impl Shm {
 }
 
 impl ShmManager {
+    /// create a new shared memory manager
     #[inline]
     pub const fn new() -> Self {
         Self {
@@ -129,6 +142,7 @@ impl ShmManager {
         }
     }
 
+    /// init a shared memory manager
     pub fn init(&mut self) {
         for i in 0..SHMALL {
             self.free_blocks[i] = i;
@@ -140,6 +154,7 @@ impl ShmManager {
         self.idstop = SHMMNI;
     }
 
+    /// alloc frames for shared memory
     #[inline]
     pub fn alloc(&mut self, nframes: usize) -> Result<usize, Error> {
         if nframes > self.blockstop || self.idstop == 0 {
@@ -170,6 +185,7 @@ impl ShmManager {
         Ok(id)
     }
 
+    /// attach shared memory
     #[inline]
     pub fn attach(&mut self, id: usize) {
         self.shms[id].shm_ref += 1;
@@ -179,11 +195,13 @@ impl ShmManager {
         }
     }
 
+    /// mark shm to be removed
     #[inline]
     pub fn rmid(&mut self, id: usize) {
         self.shms[id].rmid = 1;
     }
 
+    /// deattach shared memory, dealloc if to be removed and ref count is 0.
     #[inline]
     pub fn deattach(&mut self, id: usize) {
         self.shms[id].shm_ref -= 1;
@@ -192,6 +210,7 @@ impl ShmManager {
         }
     }
 
+    /// dealloc frames for shared memory
     #[inline]
     pub fn dealloc(&mut self, id: usize) {
         println!("free shm[{}]", id);
@@ -203,6 +222,7 @@ impl ShmManager {
         self.shms[id].nblocks = 0;
     }
 
+    /// map shared memory at given address in user space
     #[inline]
     pub fn map(&mut self, id: usize, va: VirtAddr, asid: ASID, pgdir: &mut PageTable, perm: usize) -> Result<(), Error> {
         let mut blk = self.shms[id].head;

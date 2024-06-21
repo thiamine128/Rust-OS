@@ -5,6 +5,7 @@ use crate::{device::DeviceManager, env::{env_destroy, env_sched, envid2ind, get_
 
 use super::{sem::SEM_MAMANER, EnvStatus, ENV_MANAGER};
 
+/// syscall id enum
 #[repr(usize)]
 pub enum SyscallID {
 	Putchar,
@@ -36,6 +37,7 @@ pub enum SyscallID {
 	SysNo,
 }
 
+/// convert int to syscall id
 impl From<usize> for SyscallID {
 	fn from(value: usize) -> Self {
 		match value {
@@ -70,10 +72,12 @@ impl From<usize> for SyscallID {
 	}
 }
 
+/// put char to console
 fn sys_putchar(c: i32) {
 	printcharc(c as u8);
 }
 
+/// print string to console
 fn sys_print_cons(s_addr: VirtAddr, num: usize) -> i32 {
 	if s_addr + num > UTOP || s_addr >= UTOP || s_addr > s_addr + num {
 		Error::Inval.into()
@@ -86,33 +90,35 @@ fn sys_print_cons(s_addr: VirtAddr, num: usize) -> i32 {
 	}
 }
 
+/// get current env id
 fn sys_get_envid() -> EnvID {
 	get_cur_env_id().unwrap_or_default()
 }
 
+/// yield
 fn sys_yield() -> ! {
 	env_sched(1)
 }
-
+/// destroy env
 fn sys_env_destroy(envid: EnvID) -> i32 {
 	let ind = try_or_return!(envid2ind(envid, 1));
 	println!("[{:x}] destroying {:x}", get_cur_env_id().unwrap_or_default(), envid);
 	env_destroy(ind);
 	0
 }
-
+/// set tlb mod entry of env
 fn sys_set_tlb_mod_entry(envid: EnvID, func: usize) -> i32 {
 	let mut em = ENV_MANAGER.borrow_mut();
 	let ind = try_or_return!(em.envid2ind(envid, 1));
 	em.envs[ind].env_user_tlb_mod_entry = func;
 	0
 }
-
+/// check if virtual address is valid
 #[inline]
 fn is_illegal_va(va: VirtAddr) -> bool {
 	va < UTEMP || va >= UTOP
 }
-
+/// check if range of virtual address is valid
 #[inline]
 fn is_illegal_va_range(va: VirtAddr, len: usize) -> bool {
 	if len == 0 {
@@ -121,7 +127,7 @@ fn is_illegal_va_range(va: VirtAddr, len: usize) -> bool {
 		va + len < va || va < UTEMP || va + len > UTOP
 	}
 }
-
+/// alloc memory
 fn sys_mem_alloc(envid: EnvID, va: VirtAddr, perm: usize) -> i32 {
 	if is_illegal_va(va) {
 		return Error::Inval.into();
@@ -134,7 +140,7 @@ fn sys_mem_alloc(envid: EnvID, va: VirtAddr, perm: usize) -> i32 {
 	}
 	0
 }
-
+/// map memory to userspace
 fn sys_mem_map(srcid: EnvID, srcva: VirtAddr, dstid: EnvID, dstva: VirtAddr, perm: usize) -> i32 {
 	if is_illegal_va(srcva) || is_illegal_va(dstva) {
 		return Error::Inval.into();
@@ -154,7 +160,7 @@ fn sys_mem_map(srcid: EnvID, srcva: VirtAddr, dstid: EnvID, dstva: VirtAddr, per
 	}
 	0
 }
-
+/// umap memory from user space
 fn sys_mem_unmap(envid: EnvID, va: VirtAddr) -> i32 {
 	if is_illegal_va(va) {
 		return Error::Inval.into();
@@ -167,7 +173,7 @@ fn sys_mem_unmap(envid: EnvID, va: VirtAddr) -> i32 {
 	}
 	0
 }
-
+/// fork
 fn sys_exofork() -> i32 {
 	let mut em = ENV_MANAGER.borrow_mut();
 	let cur_env_ind = em.cur_env_ind.unwrap_or_default();
@@ -184,7 +190,7 @@ fn sys_exofork() -> i32 {
 	env.env_status = EnvStatus::NotRunnable;
 	envid.0 as i32
 }
-
+/// set env status of env
 fn sys_set_env_status(envid: EnvID, status: EnvStatus) -> i32 {
 	if status != EnvStatus::Runnable && status != EnvStatus::NotRunnable {
 		return Error::Inval.into();
@@ -202,7 +208,7 @@ fn sys_set_env_status(envid: EnvID, status: EnvStatus) -> i32 {
 	}
 	0
 }
-
+/// set trap frame of env
 fn sys_set_trapframe(envid: EnvID, tf: *const Trapframe) -> i32 {
 	if is_illegal_va_range(VirtAddr::from_ptr(tf), size_of::<Trapframe>()) {
 		return Error::Inval.into();
@@ -220,13 +226,13 @@ fn sys_set_trapframe(envid: EnvID, tf: *const Trapframe) -> i32 {
 		return 0;
 	}
 }
-
+/// panic
 fn sys_panic(msg: *const i8) {
 	let s = unsafe {CStr::from_ptr(msg)};
 	let s = s.to_str().unwrap();
 	panic!("{}", s);
 }
-
+/// ipc receiving message
 fn sys_ipc_recv(dstva: VirtAddr) -> i32 {
 	if !dstva.is_null() && is_illegal_va(dstva) {
 		return Error::Inval.into();
@@ -247,7 +253,7 @@ fn sys_ipc_recv(dstva: VirtAddr) -> i32 {
 	drop(em);
 	env_sched(1);
 }
-
+/// ipc send message
 fn sys_ipc_try_send(envid: EnvID, value: usize, srcva: VirtAddr, perm: usize) -> i32 {
 	if !srcva.is_null() && is_illegal_va(srcva) {
 		return Error::Inval.into();
@@ -285,16 +291,19 @@ fn sys_ipc_try_send(envid: EnvID, value: usize, srcva: VirtAddr, perm: usize) ->
 	}
 	0
 }
-
+/// get char
 fn sys_cgetc() -> i32 {
 	scancharc() as i32
 }
-
+/// console address
 pub const CONSOLE_ADDR: PhysAddr = PhysAddr::new(0x180003f8);
+/// disk address
 pub const DISK_ADDR: PhysAddr = PhysAddr::new(0x180001f0);
+/// console len
 pub const CONSOLE_LEN: usize = 0x20;
+/// disk len
 pub const DISK_LEN: usize = 0x8;
-
+/// write bytes to device
 fn sys_write_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 	if is_illegal_va_range(va, len) {
 		return -(Error::Inval as i32);
@@ -313,7 +322,7 @@ fn sys_write_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 	};
 	0
 }
-
+/// read bytes from device
 fn sys_read_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 	if is_illegal_va_range(va, len) {
 		return -(Error::Inval as i32);
@@ -333,10 +342,11 @@ fn sys_read_dev(va: VirtAddr, pa: PhysAddr, len: usize) -> i32 {
 	0
 }
 
+/// get or create shared memory
 fn sys_shmget(key: usize, size: usize) -> i32 {
 	try_or_return!(shm_get(key, size))
 }
-
+/// map shared memory at va
 fn sys_shmat(id: usize, va: VirtAddr, perm: usize) -> i32 {
 	let mut em = ENV_MANAGER.borrow_mut();
 	let ind = em.cur_env_ind.unwrap();
@@ -346,7 +356,7 @@ fn sys_shmat(id: usize, va: VirtAddr, perm: usize) -> i32 {
 	}
 	0
 }
-
+/// deattach sharede memory at va
 fn sys_shmdt(id: usize, va: VirtAddr) -> i32 {
 	let mut em = ENV_MANAGER.borrow_mut();
 	let ind = em.cur_env_ind.unwrap();
@@ -356,20 +366,20 @@ fn sys_shmdt(id: usize, va: VirtAddr) -> i32 {
 	}
 	0
 }
-
+/// mark shared memory to be removed
 fn sys_shmctl(id: usize, ctl: usize) -> i32 {
 	if ctl == ShmCtl::Rmid as usize {
 		try_or_return!(shm_rmid(id));
 	}
 	0
 }
-
+/// open a semaphore
 fn sys_semopen(id: usize, n: isize) -> i32 {
 	let mut sem_manager = SEM_MAMANER.borrow_mut();
 	sem_manager.sem_open(id, n);
 	0
 }
-
+/// wait a semaphore
 fn sys_semwait(id: usize) -> i32 {
 	let mut sem_manager = SEM_MAMANER.borrow_mut();
 	let sem = sem_manager.get(id);
@@ -381,19 +391,20 @@ fn sys_semwait(id: usize) -> i32 {
 		0
 	}
 }
-
+/// post a semaphore
 fn sys_sempost(id: usize) {
 	let mut sem_manager = SEM_MAMANER.borrow_mut();
 	let sem = sem_manager.get(id);
 	let current = sem.load(core::sync::atomic::Ordering::Relaxed);
 	let _ = sem.compare_exchange(current, current + 1, core::sync::atomic::Ordering::Acquire, core::sync::atomic::Ordering::Relaxed);
 }
-
+/// kill a semaphore
 fn sys_semkill(id: usize) {
 	let mut sem_manager = SEM_MAMANER.borrow_mut();
 	sem_manager.sem_free(id);
 }
 
+/// get syscall func address from syscall id
 #[inline]
 fn get_syscall(id: SyscallID) -> usize {
 	match id {
@@ -427,9 +438,11 @@ fn get_syscall(id: SyscallID) -> usize {
 	}
 }
 
+/// syscall
 pub struct Syscall;
 
 impl Syscall {
+	/// do syscall body
 	pub fn do_syscall(&self, tf: &mut Trapframe) {
 		let sysno = tf.regs[4];
 		if sysno >= SyscallID::SysNo as usize {
@@ -454,6 +467,7 @@ impl Syscall {
 	}
 }
 
+/// do syscall
 #[no_mangle]
 pub extern "C" fn do_syscall(tf: &mut Trapframe) {
 	Syscall.do_syscall(tf);

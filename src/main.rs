@@ -3,7 +3,6 @@
 #![feature(alloc_error_handler)]
 #![feature(step_trait)]
 #![feature(concat_idents)]
-#![feature(sync_unsafe_cell)]
 #![feature(lazy_cell)]
 #![allow(dead_code)]
 #![no_std]
@@ -25,9 +24,13 @@ pub mod memory;
 pub mod device;
 /// handle exception
 pub mod exception;
+/// os error enum
 pub mod err;
+/// rust utils
 pub mod util;
+/// user process
 pub mod env;
+/// for sync
 pub mod sync;
 
 global_asm!(include_str!("init/start.gen.S"));

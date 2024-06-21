@@ -2,9 +2,11 @@ use core::{alloc::{GlobalAlloc, Layout}, cmp::{max, min}, mem::*, ptr::NonNull};
 
 use crate::{sync::cell::UPSafeCell, util::linked_list};
 
+/// global heap allocator
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator<32> = HeapAllocator::<32>::empty();
 
+/// heap
 pub struct Heap<const ORDER: usize> {
     free_list: [linked_list::LinkedList; ORDER],
     user: usize,
@@ -13,6 +15,7 @@ pub struct Heap<const ORDER: usize> {
 }
 
 impl<const ORDER: usize> Heap<ORDER> {
+    /// create a new heap
     pub const fn new() -> Self {
         Heap {
             free_list: [linked_list::LinkedList::new(); ORDER],
@@ -21,11 +24,11 @@ impl<const ORDER: usize> Heap<ORDER> {
             total: 0,
         }
     }
-
+    /// create an empty heap
     pub const fn empty() -> Self {
         Self::new()
     }
-
+    /// add memory to heap
     pub fn add_to_heap(&mut self, mut start: usize, mut end: usize) {
         start = (start + size_of::<usize>() - 1) & (!size_of::<usize>() + 1);
         end &= !size_of::<usize>() + 1;
@@ -45,11 +48,11 @@ impl<const ORDER: usize> Heap<ORDER> {
 
         self.total += total;
     }
-
+    /// init heap
     pub fn init(&mut self, start: usize, size: usize) {
         self.add_to_heap(start, start + size);
     }
-
+    /// alloc memory
     pub fn alloc(&mut self, layout: Layout) -> Result<NonNull<u8>, ()> {
         let size = max(
             layout.size().next_power_of_two(),
@@ -145,12 +148,13 @@ impl<const ORDER: usize> Heap<ORDER> {
 }
 
 pub struct HeapAllocator<const ORDER: usize>(UPSafeCell<Heap<ORDER>>);
-
+/// util
 fn prev_power_of_two(num: usize) -> usize {
     1 << (usize::BITS as usize - num.leading_zeros() as usize - 1)
 }
-
+/// kernel heap size
 const KERNEL_HEAP_SIZE: usize = 0x100000;
+/// kernel heap space
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
 /// initialize kernel heap.
@@ -160,28 +164,30 @@ pub fn init_heap() {
 }
 
 impl<const ORDER: usize> HeapAllocator<ORDER> {
+    /// create an empty heap allocator
     pub const fn empty() -> Self {
         Self(UPSafeCell::new(Heap::<ORDER>::empty()))
     }
-
+    /// init heap allocator
     pub fn init(&self, start: usize, size: usize) {
         self.0.borrow_mut().init(start, size);
     }
 }
 
 unsafe impl<const ORDER: usize> GlobalAlloc for HeapAllocator<ORDER> {
+    /// alloc memory from heap
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
        self.0.borrow_mut().alloc(layout)
             .ok()
             .map_or(core::ptr::null_mut(), |allocation| allocation.as_ptr())
     }
-
+    /// dealloc memory from heap
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         self.0.borrow_mut().dealloc(NonNull::new_unchecked(ptr), layout)
     }
 }
 
-/// handle heap allocation error/
+/// handle heap allocation error
 #[alloc_error_handler]
 pub fn handle_heap_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout={:?}", layout);

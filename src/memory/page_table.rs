@@ -44,12 +44,12 @@ impl Pte {
     pub const fn perm(self) -> usize {
         self.0 & 0xfff
     }
-
+    /// valid flag
     #[inline]
     pub const fn valid(self) -> bool {
         self.0 & PTE_V != 0
     }
-
+    /// do fill tlb entry
     #[inline]
     pub fn fill_tlb_entry(&mut self, pentrylo: &mut [usize; 2]) {
         let ppte: usize = addr_of_mut!(*self) as usize;
@@ -59,6 +59,7 @@ impl Pte {
         pentrylo[0] = (unsafe { *ptr0 } as usize) >> 6;
         pentrylo[1] = (unsafe { *ptr1 } as usize) >> 6;
     }
+    /// to physical address
     #[inline]
     pub const fn addr(self) -> PhysAddr {
         PhysAddr::new(self.0 & !0xfff)
@@ -66,12 +67,14 @@ impl Pte {
 }
 
 impl PageTable {
+    /// create a new page table
     #[inline]
     pub const fn new() -> Self {
         Self {
             entries: [Pte::new(0); PAGE_TABLE_ENTRIES]
         }
     }
+    /// walk or create entry for va
     #[inline]
     fn walk_or_create(&mut self, va: VirtAddr, create: i32) -> Result<&mut Pte, Error> {
         let pte = self.entries[va.pdx()];
@@ -89,6 +92,8 @@ impl PageTable {
         let page_table: &mut PageTable = unsafe { &mut *pt_addr };
         Ok(&mut page_table.entries[va.ptx()])
     }
+
+    /// look up entry for va
     #[inline]
     pub fn lookup(&mut self, va: VirtAddr) -> Result<(PhysPageNum, &mut Pte), Error> {
         let pte = self.walk_or_create(va, 0)?;
@@ -98,11 +103,14 @@ impl PageTable {
             Ok((pte.ppn(), pte))
         }
     }
+    /// look up ppn for va
     #[inline]
     pub fn lookup_ppn(&mut self, va: VirtAddr) -> Result<PhysPageNum, Error> {
         let pte = self.walk_or_create(va, 0)?;
         Ok(pte.ppn())
     }
+
+    /// remove address mapping from page table
     #[inline]
     pub fn remove(&mut self, asid: ASID, va: VirtAddr) {
         match self.lookup(va) {
@@ -114,6 +122,7 @@ impl PageTable {
             Err(_) => return,
         }
     }
+    /// map address to a frame
     #[inline]
     pub fn insert(&mut self, asid: ASID, ppn: PhysPageNum, va: VirtAddr, perm: usize) -> Result<(), Error>{
         if let Ok(pte) = self.walk_or_create(va, 0) {
@@ -134,6 +143,7 @@ impl PageTable {
         Ok(())
     }
 
+    /// translate virtual address to physical address
     #[inline]
     pub fn translate(&self, va: VirtAddr) -> Option<PhysAddr> {
         let pte = self.entries[va.pdx()];
@@ -151,6 +161,7 @@ impl PageTable {
         }
     }
 
+    /// map segment in page table
     #[inline]
     pub fn map_segment(&mut self, asid: ASID, pa: PhysAddr, va: VirtAddr, size: usize, perm: usize) {
 
@@ -162,16 +173,19 @@ impl PageTable {
         }
     }
 
+    /// set table entry
     #[inline]
     pub fn set_entry(&mut self, ptx: usize, pte: Pte) {
         self.entries[ptx] = pte;
     }
 
+    /// get table entry
     #[inline]
     pub fn get_entry(&self, ptx: usize) -> Pte {
         self.entries[ptx]
     }
 
+    /// alloc frames passively
     fn passive_alloc(&mut self, va: VirtAddr, asid: ASID) {
         if va < UTEMP {
             panic!("address too low");
@@ -202,6 +216,7 @@ impl PageTable {
             }).unwrap();
     }
 
+    /// do tlb refill according to page table
     #[inline]
     pub fn do_tlb_refill(&mut self, entries: &mut [usize; 2], va: VirtAddr, asid: ASID) {
         tlb_invalidate(asid, va);

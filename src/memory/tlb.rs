@@ -7,13 +7,14 @@ extern "C" {
     fn tlb_out(entry: usize);
 }
 
+/// invalidate a tlb item
 #[inline]
 pub fn tlb_invalidate(asid: ASID, va: VirtAddr) {
     let entry = (va.as_usize() & !genmask(PGSHIFT, 0)) | (asid.as_usize() & (NASID - 1));
     unsafe { tlb_out(entry); }
 }
 
-
+/// do tlb refill
 #[no_mangle]
 pub extern "C" fn _do_tlb_refill(entries: &mut [usize; 2], va: VirtAddr, asid: ASID) {
     cur_pgdir(|pgdir| {
@@ -21,6 +22,7 @@ pub extern "C" fn _do_tlb_refill(entries: &mut [usize; 2], va: VirtAddr, asid: A
     })
 }
 
+/// do tlb modification
 #[no_mangle]
 pub extern "C" fn do_tlb_mod(tf: &mut Trapframe) {
     tf.do_tlb_mod();

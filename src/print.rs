@@ -7,6 +7,7 @@ use crate::device::malta;
 const STATE_ADDR: *const u8 = (KSEG1 + malta::MALTA_SERIAL_LSR) as *const u8;
 const DATA_ADDR: *mut u8 = (KSEG1 + malta::MALTA_SERIAL_DATA) as *mut u8;
 
+/// put char to malta
 pub fn printcharc(byte: u8) {
     if byte == b'\n' {
         printcharc(b'\r');
@@ -16,6 +17,7 @@ pub fn printcharc(byte: u8) {
     unsafe {write_volatile(DATA_ADDR, byte)};
 }
 
+/// get char from malta
 pub fn scancharc() -> u8 {
     if unsafe {
         read_volatile(STATE_ADDR) & malta::MALTA_SERIAL_DATA_READY
@@ -24,6 +26,7 @@ pub fn scancharc() -> u8 {
     }
     return 0;
 }
+
 // Stdout to serial device.
 pub struct Stdout;
 
