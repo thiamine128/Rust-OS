@@ -4,6 +4,7 @@
 
 int main() {
     int* addr = 0x12000;
+    int child = fork();
     sem_open(1, 1);
     int r = shmget(1, 1024);
     if (r < 0) {
@@ -24,6 +25,10 @@ int main() {
         if (*a != *b) {
             user_panic("not sync %d %d\n", *a, *b);
         }
+        if (child != 0)
+            printf("this is child process, a=%d, b=%d\n", *a, *b);
+        else
+            printf("this is parent process, a=%d, b=%d\n", *a, *b);
         sem_post(1);        
     }
     shmctl(id, SHM_RMID);

@@ -38,6 +38,7 @@ USERAPPS     := num.b  \
 		testbss.b \
 		testfdsharing.b \
 		pingpong.b \
-		init.b
+		init.b \
+		shmtest.b
 
 USERLIB := $(addprefix lib/, $(USERLIB)) $(wildcard ../lib/*.o)
