@@ -132,6 +132,7 @@ impl IndexLink {
     pub fn get_size_for(len: usize) -> usize {
         (len + 2) * size_of::<Option<usize>>() * 2
     }
+    /// len of list
     #[inline]
     pub fn len(&self) -> usize {
         self.rem
