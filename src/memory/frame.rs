@@ -1,4 +1,4 @@
-use core::{alloc::Layout, mem::size_of, ptr::write_bytes};
+use core::{mem::size_of, ptr::write_bytes};
 
 use alloc::vec::Vec;
 

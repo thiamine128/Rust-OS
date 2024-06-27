@@ -2,8 +2,6 @@ use core::mem::size_of;
 
 use alloc::vec::Vec;
 
-use crate::memory::mmu::VirtAddr;
-
 /// index link for linked list
 pub struct IndexLink {
     n: usize,
