@@ -153,7 +153,7 @@ fn prev_power_of_two(num: usize) -> usize {
     1 << (usize::BITS as usize - num.leading_zeros() as usize - 1)
 }
 /// kernel heap size
-const KERNEL_HEAP_SIZE: usize = 0x100000;
+const KERNEL_HEAP_SIZE: usize = 0x200000;
 /// kernel heap space
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 

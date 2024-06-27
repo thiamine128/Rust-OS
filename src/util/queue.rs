@@ -29,20 +29,6 @@ impl IndexLink {
             rem: 0
         }
     }
-    /// init list from raw pointer
-    #[inline]
-    pub fn init_from_ptr(&mut self, addr: VirtAddr, n: usize) {
-        self.n = n;
-        let next_addr: *mut Option<usize> = addr.as_mut_ptr();
-        let occupied = n + 2;
-        self.le_next = unsafe { Vec::from_raw_parts(next_addr, occupied, occupied) };
-        let prev_addr: *mut Option<usize> = (addr + occupied * size_of::<Option<usize>>()).as_mut_ptr();
-        self.le_prev = unsafe {
-            Vec::from_raw_parts(prev_addr, occupied, occupied)
-        };
-        self.le_next[n] = Some(n + 1);
-        self.le_prev[n + 1] = Some(n);
-    }
 
     /// simple init
     #[inline]

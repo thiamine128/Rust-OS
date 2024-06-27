@@ -69,15 +69,9 @@ impl FrameAllocator {
     /// init a frame allocator
     #[inline]
     pub fn init(&mut self, freemem: VirtAddr, nframes: usize) {
-        let frames_size = nframes * size_of::<PhysFrame>();
-        let layout = Layout::from_size_align(frames_size, PAGE_SIZE).unwrap();
-        let base_addr = VirtAddr::from_ptr(unsafe {
-          alloc::alloc::alloc(layout)
-        });
-        self.base_addr = base_addr;
-        self.base_size = frames_size;
-        let frames_addr = base_addr.as_mut_ptr();
-        self.frames = unsafe {Vec::from_raw_parts(frames_addr, nframes, nframes)};
+        self.frames.resize(nframes, PhysFrame { pf_ref: 0 });
+        self.base_addr = VirtAddr::from_ptr(self.frames.as_mut_ptr());
+        self.base_size = nframes * size_of::<PhysFrame>();
         self.frames_free_list.init(nframes);
         self.nframes = nframes;
 

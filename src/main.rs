@@ -12,15 +12,15 @@ use core::arch::global_asm;
 
 extern crate alloc;
 
-/// kernel print.
+/// kernel print
 pub mod print;
-/// kernel panic.
+/// kernel panic
 pub mod panic;
-/// kernel init.
+/// kernel init
 pub mod init;
 /// memory management.
 pub mod memory;
-/// serial device.
+/// serial device
 pub mod device;
 /// handle exception
 pub mod exception;
