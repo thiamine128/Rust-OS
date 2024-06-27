@@ -29,7 +29,7 @@ int main() {
             printf("this is child process, a=%d, b=%d\n", *a, *b);
         else
             printf("this is parent process, a=%d, b=%d\n", *a, *b);
-        sem_post(1);        
+        sem_post(1);
     }
     shmctl(id, SHM_RMID);
     shmdt(id, addr);
